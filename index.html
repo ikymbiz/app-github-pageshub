@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GitHub Pages Hub</title>
+    <title>My GitHub Pages Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" id="manifest" href="">
@@ -20,7 +20,7 @@
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
-            padding-bottom: 80px; /* For bottom nav */
+            padding-bottom: 80px;
         }
         .card {
             background-color: var(--card-bg);
@@ -56,7 +56,6 @@
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         
-        /* Hide scrollbar for clean UI */
         ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
@@ -65,10 +64,15 @@
     <!-- Header -->
     <header class="sticky top-0 z-10 bg-white/90 backdrop-blur-md shadow-sm px-4 py-4 flex justify-between items-center">
         <h1 class="text-xl font-bold flex items-center gap-2">
-            <i class="fa-brands fa-github text-2xl"></i> Pages Hub
+            <i class="fa-brands fa-github text-2xl"></i> My Pages Hub
         </h1>
         <div class="flex items-center gap-3">
-            <span id="sync-status" class="text-xs text-gray-500 hidden"><i class="fa-solid fa-arrows-rotate fa-spin"></i> 同期中...</span>
+            <span id="sync-status" class="text-xs text-blue-600 hidden bg-blue-50 px-3 py-1.5 rounded-full font-bold shadow-sm flex items-center gap-2">
+                <span><i class="fa-solid fa-arrows-rotate fa-spin mr-1"></i> <span id="sync-progress-text">同期中...</span></span>
+                <button onclick="App.cancelSync()" class="text-red-500 hover:text-red-700 ml-1 pl-2 border-l border-blue-200 transition">
+                    <i class="fa-solid fa-xmark"></i> 停止
+                </button>
+            </span>
             <button onclick="UI.openSettingsModal()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition">
                 <i class="fa-solid fa-gear"></i>
             </button>
@@ -80,7 +84,7 @@
         <!-- Search & Filter -->
         <div class="mb-6 relative">
             <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400"></i>
-            <input type="text" id="searchInput" placeholder="検索 (URL, タイトル...)" class="w-full bg-white border border-gray-200 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition">
+            <input type="text" id="searchInput" placeholder="自身のPagesを検索..." class="w-full bg-white border border-gray-200 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition">
         </div>
 
         <!-- Pages List -->
@@ -90,8 +94,8 @@
         
         <div id="emptyState" class="hidden flex flex-col items-center justify-center py-20 text-gray-400">
             <i class="fa-brands fa-github text-6xl mb-4 text-gray-300"></i>
-            <p>登録されたページがありません</p>
-            <p class="text-sm mt-2">右下の「＋」ボタンから追加してください</p>
+            <p>自身のGitHub Pagesがありません</p>
+            <p class="text-xs mt-2 text-center px-4">設定からPATを登録して自動検出するか<br>右下の「＋」ボタンから追加してください</p>
         </div>
     </main>
 
@@ -113,7 +117,7 @@
         </div>
         <button onclick="App.syncAll()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition w-16">
             <i class="fa-solid fa-rotate-right text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">一括更新</span>
+            <span class="text-[10px] font-medium">一括同期</span>
         </button>
         <button onclick="UI.openHistoryModal()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition w-16">
             <i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i>
@@ -161,9 +165,10 @@
             
             <div class="space-y-4">
                 <!-- PAT Settings -->
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">重要</div>
                     <h3 class="font-bold text-gray-800 mb-2"><i class="fa-brands fa-github"></i> API Key (PAT)</h3>
-                    <p class="text-xs text-gray-500 mb-3">API制限の緩和やより詳細な情報取得に使用します。</p>
+                    <p class="text-xs text-gray-600 mb-3">自身の公開・プライベートリポジトリからGitHub Pagesを<strong>自動検出・一括同期</strong>するために必須です。<br>APIレートリミットも大幅に緩和されます。</p>
                     <div class="flex gap-2">
                         <input type="password" id="githubPat" placeholder="ghp_..." class="flex-1 border border-gray-300 rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <button onclick="App.saveGithubPat()" class="py-2 px-4 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 transition">保存</button>
@@ -172,7 +177,7 @@
 
                 <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
                     <h3 class="font-bold text-blue-800 mb-2"><i class="fa-solid fa-file-export"></i> エクスポート</h3>
-                    <p class="text-sm text-blue-600 mb-3">全データをJSONとしてバックアップします。</p>
+                    <p class="text-sm text-blue-600 mb-3">自身の全PagesデータをJSONとしてバックアップします。</p>
                     <button onclick="App.exportData()" class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">ダウンロード</button>
                 </div>
 
@@ -210,15 +215,15 @@
     </div>
 
     <!-- Toast Container -->
-    <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] sm:w-auto items-center"></div>
 
     <script>
         // ==========================================
         // 1. PWA Manifest Injection
         // ==========================================
         const manifest = {
-            name: "GitHub Pages Hub",
-            short_name: "GPHub",
+            name: "My GitHub Pages Hub",
+            short_name: "MyPages",
             start_url: ".",
             display: "standalone",
             background_color: "#f3f4f6",
@@ -309,44 +314,89 @@
         const db = new DB();
 
         // ==========================================
-        // 3. Web Worker (Async Background Tasks)
+        // 3. Web Worker (Async Background Tasks & Cache)
         // ==========================================
         const workerCode = `
             self.onmessage = async function(e) {
                 const { type, payload } = e.data;
+                
+                // --- 既存の個別メタデータ取得 ---
                 if (type === 'FETCH_METADATA') {
-                    const { id, url, pat } = payload;
+                    const { id, url, pat, lastFetch } = payload;
                     try {
-                        let title = "";
-                        let description = "";
-                        let lastUpdated = new Date().toISOString();
-                        
-                        // Parse GitHub URL to guess API endpoint
-                        // URL formats: username.github.io or username.github.io/repo
                         const match = url.match(/https?:\\/\\/([\\w-]+)\\.github\\.io\\/?([\\w-]+)?/i);
-                        
                         if (match) {
                             const user = match[1];
                             const repo = match[2];
                             const apiUrl = repo ? \`https://api.github.com/repos/\${user}/\${repo}\` : \`https://api.github.com/users/\${user}\`;
                             
                             const headers = {};
-                            if (pat) {
-                                headers['Authorization'] = \`Bearer \${pat}\`;
-                            }
+                            if (pat) headers['Authorization'] = \`Bearer \${pat}\`;
+                            if (lastFetch) headers['If-Modified-Since'] = new Date(lastFetch).toUTCString();
                             
                             const res = await fetch(apiUrl, { headers });
+                            
+                            if (res.status === 304) {
+                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'not_modified' } });
+                                return;
+                            }
+                            
                             if (res.ok) {
                                 const data = await res.json();
-                                title = repo ? data.name : (data.name || \`\${user}'s Page\`);
-                                description = data.description || "";
-                                lastUpdated = data.updated_at || lastUpdated;
+                                const title = repo ? data.name : (data.name || \`\${user}'s Page\`);
+                                const description = data.description || "";
+                                const lastUpdated = data.updated_at || new Date().toISOString();
+                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, title, description, lastUpdated, status: 'success' } });
+                                return;
+                            }
+                        }
+                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: 'Invalid URL or API Error' } });
+                    } catch (err) {
+                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: err.message } });
+                    }
+                }
+                
+                // --- 新規: ユーザーリポジトリからのPages自動検出 ---
+                else if (type === 'SYNC_USER_REPOS') {
+                    const { pat } = payload;
+                    try {
+                        let page = 1;
+                        let allRepos = [];
+                        let hasNext = true;
+                        
+                        while(hasNext) {
+                            const res = await fetch(\`https://api.github.com/user/repos?per_page=100&page=\${page}&affiliation=owner\`, {
+                                headers: { 
+                                    'Authorization': \`Bearer \${pat}\`, 
+                                    'Accept': 'application/vnd.github.v3+json' 
+                                }
+                            });
+                            
+                            if (!res.ok) throw new Error('Failed to fetch repos. PAT may be invalid.');
+                            
+                            const repos = await res.json();
+                            if (repos.length === 0) {
+                                hasNext = false;
+                            } else {
+                                allRepos = allRepos.concat(repos);
+                                page++;
                             }
                         }
                         
-                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, title, description, lastUpdated, status: 'success' } });
+                        const pagesRepos = allRepos.filter(repo => repo.has_pages);
+                        const discoveredPages = pagesRepos.map(repo => {
+                            const url = \`https://\${repo.owner.login}.github.io/\${repo.name}/\`;
+                            return {
+                                url,
+                                title: repo.name,
+                                description: repo.description || "",
+                                githubUpdatedAt: repo.updated_at
+                            };
+                        });
+                        
+                        self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'success', pages: discoveredPages } });
                     } catch (err) {
-                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: err.message } });
+                        self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'error', error: err.message } });
                     }
                 }
             };
@@ -383,16 +433,15 @@
                     error: 'bg-red-600 text-white',
                     info: 'bg-blue-600 text-white'
                 };
-                toast.className = `px-4 py-2 rounded-full shadow-lg text-sm font-medium toast ${colors[type]} flex items-center gap-2`;
-                toast.innerHTML = type === 'success' ? `<i class="fa-solid fa-check-circle"></i> ${message}` : message;
+                toast.className = `px-4 py-2 rounded-full shadow-lg text-sm font-medium toast ${colors[type]} flex items-center gap-2 max-w-full text-center`;
+                toast.innerHTML = type === 'success' ? `<i class="fa-solid fa-check-circle"></i> <span>${message}</span>` : `<span>${message}</span>`;
                 container.appendChild(toast);
-                setTimeout(() => toast.remove(), 3000);
+                setTimeout(() => toast.remove(), 4000);
             },
             openModal(id) {
                 const modal = document.getElementById(id);
                 const content = document.getElementById(id + 'Content');
                 modal.classList.remove('hidden');
-                // Allow reflow
                 void modal.offsetWidth;
                 content.classList.remove('translate-y-full');
             },
@@ -420,7 +469,6 @@
                     document.getElementById('modalTitle').innerText = 'ページの追加';
                     form.reset();
                     document.getElementById('pageId').value = '';
-                    // Resume from draft
                     const draftUrl = localStorage.getItem('draftUrl');
                     if(draftUrl) urlInput.value = draftUrl;
                     document.getElementById('pageTitle').value = localStorage.getItem('draftTitle') || '';
@@ -439,6 +487,8 @@
             pages: [],
             filterMode: 'all',
             searchQuery: '',
+            syncProgress: { total: 0, current: 0, success: 0, skipped: 0, error: 0 },
+            syncCancelRequested: false,
 
             async init() {
                 try {
@@ -448,9 +498,10 @@
                     this.setupListeners();
                     this.setupWorker();
                     
-                    // Resume sync if it was interrupted (dummy check)
                     if(localStorage.getItem('syncInProgress') === 'true') {
-                        this.syncAll();
+                        localStorage.removeItem('syncInProgress');
+                        this.pages.forEach(p => p.isSyncing = false);
+                        this.renderPages();
                     }
                 } catch (e) {
                     console.error("Initialization failed:", e);
@@ -482,7 +533,20 @@
 
             async loadPages() {
                 this.pages = await db.getAll('pages');
-                // Sort by latest added/updated
+                
+                let needUpdate = false;
+                this.pages.forEach(p => {
+                    if (p.isSyncing) {
+                        p.isSyncing = false;
+                        needUpdate = true;
+                    }
+                });
+                if (needUpdate) {
+                    for (const p of this.pages) {
+                        await db.put('pages', p);
+                    }
+                }
+
                 this.pages.sort((a, b) => b.updatedAt - a.updatedAt);
                 this.renderPages();
             },
@@ -497,23 +561,102 @@
             setupWorker() {
                 worker.onmessage = async (e) => {
                     const { type, payload } = e.data;
+                    
                     if (type === 'METADATA_RESULT') {
                         const pageIndex = this.pages.findIndex(p => p.id === payload.id);
-                        if (pageIndex > -1 && payload.status === 'success') {
+                        if (pageIndex > -1) {
                             const p = this.pages[pageIndex];
-                            // Update only if user hasn't set custom title or it was empty
-                            if(!p.hasCustomTitle && payload.title) p.title = payload.title;
-                            p.description = payload.description || p.description;
-                            p.githubUpdatedAt = payload.lastUpdated;
-                            p.isSyncing = false;
                             
+                            if (this.syncCancelRequested) {
+                                p.isSyncing = false;
+                                this.updateCardDOM(p);
+                                this.checkSyncCompletion();
+                                return;
+                            }
+
+                            if (payload.status === 'success') {
+                                if(!p.hasCustomTitle && payload.title) p.title = payload.title;
+                                p.description = payload.description || p.description;
+                                p.githubUpdatedAt = payload.lastUpdated;
+                                p.lastFetch = new Date().toISOString();
+                                this.syncProgress.success++;
+                            } else if (payload.status === 'not_modified') {
+                                p.lastFetch = new Date().toISOString();
+                                this.syncProgress.skipped++;
+                            } else {
+                                this.syncProgress.error++;
+                            }
+                            
+                            p.isSyncing = false;
                             await db.put('pages', p);
-                            this.renderList();
-                        } else if(pageIndex > -1) {
-                            this.pages[pageIndex].isSyncing = false;
-                            this.renderList();
+                            this.updateCardDOM(p);
+
+                            if (!document.getElementById('sync-status').classList.contains('hidden')) {
+                                this.syncProgress.current++;
+                                document.getElementById('sync-progress-text').innerText = `個別更新中... (${this.syncProgress.current}/${this.syncProgress.total})`;
+                            }
                         }
                         this.checkSyncCompletion();
+                    }
+                    
+                    else if (type === 'SYNC_USER_REPOS_RESULT') {
+                        if (this.syncCancelRequested) {
+                            this.checkSyncCompletion();
+                            return;
+                        }
+                        
+                        if (payload.status === 'success') {
+                            const now = Date.now();
+                            let addedCount = 0;
+                            let updatedCount = 0;
+                            
+                            for (const discovered of payload.pages) {
+                                // URL末尾のスラッシュ有無を吸収して比較
+                                const cleanDiscUrl = discovered.url.toLowerCase().replace(/\/$/, "");
+                                const existingIndex = this.pages.findIndex(p => p.url.toLowerCase().replace(/\/$/, "") === cleanDiscUrl);
+                                
+                                if (existingIndex > -1) {
+                                    // Update
+                                    const p = this.pages[existingIndex];
+                                    if (!p.hasCustomTitle) p.title = discovered.title;
+                                    p.description = discovered.description || p.description;
+                                    p.githubUpdatedAt = discovered.githubUpdatedAt;
+                                    p.lastFetch = new Date().toISOString();
+                                    await db.put('pages', p);
+                                    this.updateCardDOM(p);
+                                    updatedCount++;
+                                } else {
+                                    // Add new
+                                    const newPage = {
+                                        id: 'page_' + now + '_' + Math.random().toString(36).substr(2, 9),
+                                        url: discovered.url,
+                                        title: discovered.title,
+                                        hasCustomTitle: false,
+                                        description: discovered.description || '',
+                                        memo: '',
+                                        isFavorite: false,
+                                        createdAt: now,
+                                        updatedAt: now,
+                                        isSyncing: false,
+                                        lastFetch: new Date().toISOString(),
+                                        githubUpdatedAt: discovered.githubUpdatedAt
+                                    };
+                                    this.pages.unshift(newPage);
+                                    await db.put('pages', newPage);
+                                    addedCount++;
+                                }
+                            }
+                            
+                            if (addedCount > 0) this.renderList();
+                            if (addedCount > 0 || updatedCount > 0) {
+                                UI.showToast(`リポジトリから ${addedCount}件追加、${updatedCount}件更新`, "success");
+                            }
+                        } else {
+                            UI.showToast("リポジトリ情報の取得に失敗しました", "error");
+                        }
+                        
+                        // 自動検出が終わったら、手動追加分などの個別更新へ移行
+                        this.syncIndividualPages();
                     }
                 };
             },
@@ -521,10 +664,23 @@
             checkSyncCompletion() {
                 const isAnySyncing = this.pages.some(p => p.isSyncing);
                 if (!isAnySyncing) {
-                    document.getElementById('sync-status').classList.add('hidden');
+                    const statusEl = document.getElementById('sync-status');
+                    if (!statusEl.classList.contains('hidden')) {
+                        statusEl.classList.add('hidden');
+                        if (this.syncCancelRequested) {
+                            UI.showToast("同期をキャンセルしました", "error");
+                        } else {
+                            if(this.syncProgress.total > 0) {
+                                UI.showToast(`完了 (成功:${this.syncProgress.success} スキップ:${this.syncProgress.skipped} エラー:${this.syncProgress.error})`, "success");
+                            } else {
+                                UI.showToast("同期完了", "success");
+                            }
+                        }
+                    }
                     localStorage.removeItem('syncInProgress');
+                    this.syncCancelRequested = false;
                     releaseWakeLock();
-                    this.createBackup(); // Auto backup after sync
+                    this.createBackup();
                 }
             },
 
@@ -535,6 +691,7 @@
                     localStorage.setItem('draftMemo', document.getElementById('pageMemo').value);
                 }
             },
+            
             clearDraft() {
                 localStorage.removeItem('draftUrl');
                 localStorage.removeItem('draftTitle');
@@ -563,6 +720,7 @@
                 if (idInput) {
                     page = this.pages.find(p => p.id === idInput);
                     if(page) {
+                        if (page.url !== url) page.lastFetch = null;
                         page.url = url;
                         page.hasCustomTitle = title !== '';
                         page.title = title || page.title;
@@ -580,22 +738,22 @@
                         isFavorite: false,
                         createdAt: now,
                         updatedAt: now,
-                        isSyncing: true
+                        isSyncing: true,
+                        lastFetch: null
                     };
                     this.pages.unshift(page);
                 }
 
                 await db.put('pages', page);
-                await this.createBackup(); // Auto backup on save
+                await this.createBackup();
                 
                 UI.closeModal('addModal');
                 this.clearDraft();
                 this.renderList();
                 UI.showToast(idInput ? "更新しました" : "追加しました", "success");
 
-                // Request metadata fetch for new/updated url
-                if(!idInput || url !== page.url) {
-                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: page.id, url: page.url, pat: this.getGithubPat() } });
+                if(!idInput || !page.lastFetch) {
+                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: page.id, url: page.url, pat: this.getGithubPat(), lastFetch: page.lastFetch } });
                 }
             },
 
@@ -605,7 +763,7 @@
                 if (page) {
                     page.isFavorite = !page.isFavorite;
                     await db.put('pages', page);
-                    this.renderList();
+                    this.updateCardDOM(page);
                 }
             },
 
@@ -615,7 +773,13 @@
                     await db.delete('pages', id);
                     this.pages = this.pages.filter(p => p.id !== id);
                     await this.createBackup();
-                    this.renderList();
+                    
+                    const cardEl = document.getElementById(`card-${id}`);
+                    if(cardEl) cardEl.remove();
+                    
+                    if(this.pages.length === 0) {
+                        this.renderList();
+                    }
                     UI.showToast("削除しました");
                 }
             },
@@ -628,6 +792,53 @@
             renderFavorites() {
                 this.filterMode = 'favorites';
                 this.renderList();
+            },
+
+            createCardElement(page) {
+                const domainMatch = page.url.match(/https?:\/\/([\w-]+)\.github\.io/i);
+                const username = domainMatch ? domainMatch[1] : 'Unknown';
+                
+                const card = document.createElement('div');
+                card.id = `card-${page.id}`;
+                card.className = 'card p-4 relative cursor-pointer flex flex-col h-full';
+                card.onclick = () => window.open(page.url, '_blank', 'noopener,noreferrer');
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <img src="https://github.com/${username}.png" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDBDNS4zNyAwIDAgNS4zNyAwIDEyYzAgNS4zMSAzLjQzNSA5LjgyNiA4LjIwNiAxMS4zODcuNi4xMTEuODE4LS4yNi44MTgtLjU3OHYtMi4wNDRjLTMuMzM4LjcyNC00LjA0Mi0xLjYxLTQuMDQyLTEuNjFDNC40MjIgMTguMDcgMy42MzMgMTcuNyAzLjYzMyAxNy43Yy0xLjA4Ny0uNzQ0LjA4NC0uNzI5LjA4NC0uNzI5IDEuMjA1LjA4NCAxLjgzOCAxLjIzNiAxLjgzOCAxLjIzNiAxLjA3IDEuODM1IDIuODA5IDEuMzA1IDMuNDk1Ljk5OC4xMDgtLjc3Ni40MTctMS4zMDUuNzYtMS42MDUtMi42NjUtLjMwMy01LjQ2Ni0xLjMzMi01LjQ2Ni01LjkzIDAtMS4zMS40NjUtMi4zOCAxLjIzNS0zLjIyMi0uMTIzLS4zMDMtLjUzNS0xLjUyMy4xMTctMy4xNzYgMCAwIDEuMDA4LS4zMjIgMy4zMDEgMS4yMy45NTctLjI2NiAxLjk4My0uMzk4IDMuMDAzLS40MDQgMS4wMi4wMDYgMi4wNDYuMTM4IDMuMDAzLjQwNCAyLjI5MS0xLjU1MiAzLjI5Ny0xLjIzIDMyLjk3LTEuMjMuNjUzIDEuNjUzLjI0MiAyLjg3NC4xMTggMy4xNzYuNzcuODQgMS4yMzUgMS45MTEgMS4yMzUgMy4yMjIgMCA0LjYxLTIuODA1IDUuNjI1LTUuNDc1IDUuOTIuNDIuMzYuODEgMS4wOTYuODEgMi4yMmwwIDMuMjJjMCAuMzIuMjE2LjY5NC44MjUuNTc2QzIwLjU2NSAyMS44MjYgMjQgMTcuMzEgMjQgMTJjMC02LjYzLLTUuMzctMTItMTItMTJ6IiBmaWxsPSIjY2JjYmNiIi8+PC9zdmc+'" class="w-8 h-8 rounded-full border border-gray-200">
+                            <h3 class="font-bold text-gray-800 truncate">${page.title}</h3>
+                        </div>
+                        <button onclick="App.toggleFavorite('${page.id}', event)" class="text-xl ${page.isFavorite ? 'text-yellow-400' : 'text-gray-200 hover:text-gray-300'} transition p-1">
+                            <i class="fa-solid fa-star"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-blue-600 mb-2 truncate">${page.url}</p>
+                    ${page.description ? `<p class="text-sm text-gray-600 line-clamp-2 mb-3 flex-grow">${page.description}</p>` : '<div class="flex-grow"></div>'}
+                    ${page.memo ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3"><i class="fa-solid fa-note-sticky"></i> ${page.memo}</div>` : ''}
+                    <div class="flex justify-between items-center mt-auto border-t border-gray-100 pt-3">
+                        <span class="text-[10px] ${page.isSyncing ? 'text-blue-500 font-bold' : 'text-gray-400'}">
+                            ${page.isSyncing ? '<i class="fa-solid fa-arrows-rotate fa-spin"></i> 同期中...' : (page.githubUpdatedAt ? '更新: '+new Date(page.githubUpdatedAt).toLocaleDateString() : '')}
+                        </span>
+                        <div class="flex gap-2">
+                            <button onclick="event.stopPropagation(); UI.openAddModal('${page.id}')" class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="App.deletePage('${page.id}', event)" class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return card;
+            },
+
+            updateCardDOM(page) {
+                const oldCard = document.getElementById(`card-${page.id}`);
+                if (oldCard) {
+                    const newCard = this.createCardElement(page);
+                    oldCard.replaceWith(newCard);
+                }
             },
 
             renderList() {
@@ -653,41 +864,7 @@
                 } else {
                     emptyState.classList.add('hidden');
                     filtered.forEach(page => {
-                        const domainMatch = page.url.match(/https?:\/\/([\w-]+)\.github\.io/i);
-                        const username = domainMatch ? domainMatch[1] : 'Unknown';
-                        
-                        const card = document.createElement('div');
-                        card.className = 'card p-4 relative cursor-pointer flex flex-col h-full';
-                        card.onclick = () => window.open(page.url, '_blank', 'noopener,noreferrer');
-                        
-                        card.innerHTML = `
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex items-center gap-2 overflow-hidden">
-                                    <img src="https://github.com/${username}.png" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDBDNS4zNyAwIDAgNS4zNyAwIDEyYzAgNS4zMSAzLjQzNSA5LjgyNiA4LjIwNiAxMS4zODcuNi4xMTEuODE4LS4yNi44MTgtLjU3OHYtMi4wNDRjLTMuMzM4LjcyNC00LjA0Mi0xLjYxLTQuMDQyLTEuNjFDNC40MjIgMTguMDcgMy42MzMgMTcuNyAzLjYzMyAxNy43Yy0xLjA4Ny0uNzQ0LjA4NC0uNzI5LjA4NC0uNzI5IDEuMjA1LjA4NCAxLjgzOCAxLjIzNiAxLjgzOCAxLjIzNiAxLjA3IDEuODM1IDIuODA5IDEuMzA1IDMuNDk1Ljk5OC4xMDgtLjc3Ni40MTctMS4zMDUuNzYtMS42MDUtMi42NjUtLjMwMy01LjQ2Ni0xLjMzMi01LjQ2Ni01LjkzIDAtMS4zMS40NjUtMi4zOCAxLjIzNS0zLjIyMi0uMTIzLS4zMDMtLjUzNS0xLjUyMy4xMTctMy4xNzYgMCAwIDEuMDA4LS4zMjIgMy4zMDEgMS4yMy45NTctLjI2NiAxLjk4My0uMzk4IDMuMDAzLS40MDQgMS4wMi4wMDYgMi4wNDYuMTM4IDMuMDAzLjQwNCAyLjI5MS0xLjU1MiAzLjI5Ny0xLjIzIDMyLjk3LTEuMjMuNjUzIDEuNjUzLjI0MiAyLjg3NC4xMTggMy4xNzYuNzcuODQgMS4yMzUgMS45MTEgMS4yMzUgMy4yMjIgMCA0LjYxLTIuODA1IDUuNjI1LTUuNDc1IDUuOTIuNDIuMzYuODEgMS4wOTYuODEgMi4yMmwwIDMuMjJjMCAuMzIuMjE2LjY5NC44MjUuNTc2QzIwLjU2NSAyMS44MjYgMjQgMTcuMzEgMjQgMTJjMC02LjYzLLTUuMzctMTItMTItMTJ6IiBmaWxsPSIjY2JjYmNiIi8+PC9zdmc+'" class="w-8 h-8 rounded-full border border-gray-200">
-                                    <h3 class="font-bold text-gray-800 truncate">${page.title}</h3>
-                                </div>
-                                <button onclick="App.toggleFavorite('${page.id}', event)" class="text-xl ${page.isFavorite ? 'text-yellow-400' : 'text-gray-200 hover:text-gray-300'} transition p-1">
-                                    <i class="fa-solid fa-star"></i>
-                                </button>
-                            </div>
-                            <p class="text-xs text-blue-600 mb-2 truncate">${page.url}</p>
-                            ${page.description ? `<p class="text-sm text-gray-600 line-clamp-2 mb-3 flex-grow">${page.description}</p>` : '<div class="flex-grow"></div>'}
-                            ${page.memo ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3"><i class="fa-solid fa-note-sticky"></i> ${page.memo}</div>` : ''}
-                            <div class="flex justify-between items-center mt-auto border-t border-gray-100 pt-3">
-                                <span class="text-[10px] text-gray-400">
-                                    ${page.isSyncing ? '<i class="fa-solid fa-arrows-rotate fa-spin"></i> 同期中' : (page.githubUpdatedAt ? '更新: '+new Date(page.githubUpdatedAt).toLocaleDateString() : '')}
-                                </span>
-                                <div class="flex gap-2">
-                                    <button onclick="event.stopPropagation(); UI.openAddModal('${page.id}')" class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition">
-                                        <i class="fa-solid fa-pen text-xs"></i>
-                                    </button>
-                                    <button onclick="App.deletePage('${page.id}', event)" class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition">
-                                        <i class="fa-solid fa-trash text-xs"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                        container.appendChild(card);
+                        container.appendChild(this.createCardElement(page));
                     });
                 }
             },
@@ -698,10 +875,9 @@
                 const timestamp = Date.now();
                 await db.put('backups', { timestamp, data });
                 
-                // Keep only last 5
                 const backups = await db.getAll('backups');
                 if (backups.length > 5) {
-                    backups.sort((a, b) => a.timestamp - b.timestamp); // Ascending
+                    backups.sort((a, b) => a.timestamp - b.timestamp);
                     const toDelete = backups.length - 5;
                     for(let i=0; i<toDelete; i++) {
                         await db.delete('backups', backups[i].timestamp);
@@ -713,7 +889,7 @@
                 const list = document.getElementById('backupList');
                 list.innerHTML = '';
                 const backups = await db.getAll('backups');
-                backups.sort((a, b) => b.timestamp - a.timestamp); // Descending
+                backups.sort((a, b) => b.timestamp - a.timestamp);
 
                 if(backups.length === 0) {
                     list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">バックアップはありません</p>';
@@ -759,7 +935,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `GPHub_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `MyPagesHub_Backup_${new Date().toISOString().split('T')[0]}.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -778,7 +954,6 @@
                         
                         await db.clear('pages');
                         for(const p of imported) {
-                            // Validation mock
                             if(p.id && p.url) await db.put('pages', p);
                         }
                         await this.loadPages();
@@ -790,7 +965,7 @@
                     }
                 };
                 reader.readAsText(file);
-                e.target.value = ''; // Reset input
+                e.target.value = '';
             },
 
             async clearAllData() {
@@ -804,24 +979,72 @@
                 }
             },
 
-            // --- Async Bulk Sync ---
+            // --- Async Bulk Sync (Optimized for speed & rate limits) ---
+            cancelSync() {
+                if (localStorage.getItem('syncInProgress') === 'true') {
+                    this.syncCancelRequested = true;
+                    UI.showToast("同期を停止しています...", "info");
+                }
+            },
+
             async syncAll() {
-                if(this.pages.length === 0) return;
+                if(localStorage.getItem('syncInProgress') === 'true') return;
                 
                 await requestWakeLock();
-                document.getElementById('sync-status').classList.remove('hidden');
+                this.syncCancelRequested = false;
                 localStorage.setItem('syncInProgress', 'true');
-                UI.showToast("一括更新を開始しました");
+
+                const pat = this.getGithubPat();
+                const syncStatusEl = document.getElementById('sync-status');
+                const syncTextEl = document.getElementById('sync-progress-text');
+
+                if (pat) {
+                    UI.showToast("リポジトリからPagesを自動検出しています...");
+                    syncStatusEl.classList.remove('hidden');
+                    syncTextEl.innerText = `リポジトリ検索中...`;
+                    
+                    worker.postMessage({ type: 'SYNC_USER_REPOS', payload: { pat } });
+                } else {
+                    if(this.pages.length === 0) {
+                        localStorage.removeItem('syncInProgress');
+                        releaseWakeLock();
+                        UI.showToast("PATを設定するか、手動でページを追加してください", "info");
+                        return;
+                    }
+                    UI.showToast("個別更新を開始しました");
+                    this.syncIndividualPages();
+                }
+            },
+
+            syncIndividualPages() {
+                if(this.pages.length === 0 || this.syncCancelRequested) {
+                    this.checkSyncCompletion();
+                    return;
+                }
+
+                this.syncProgress = { total: this.pages.length, current: 0, success: 0, skipped: 0, error: 0 };
+                const syncStatusEl = document.getElementById('sync-status');
+                const syncTextEl = document.getElementById('sync-progress-text');
+                
+                syncStatusEl.classList.remove('hidden');
+                syncTextEl.innerText = `個別更新中... (0/${this.syncProgress.total})`;
 
                 this.pages.forEach(p => {
                     p.isSyncing = true;
-                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: p.id, url: p.url, pat: this.getGithubPat() } });
+                    this.updateCardDOM(p);
+                    worker.postMessage({ 
+                        type: 'FETCH_METADATA', 
+                        payload: { 
+                            id: p.id, 
+                            url: p.url, 
+                            pat: this.getGithubPat(),
+                            lastFetch: p.lastFetch || null
+                        } 
+                    });
                 });
-                this.renderList();
             }
         };
 
-        // Initialize App on load
         window.addEventListener('DOMContentLoaded', () => {
             App.init();
         });
