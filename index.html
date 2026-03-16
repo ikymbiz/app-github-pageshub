@@ -4,8 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>My GitHub Pages Hub</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS with Typography plugin for Readme Markdown rendering -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for parsing Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- DOMPurify for sanitizing HTML output to prevent XSS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <link rel="manifest" id="manifest" href="">
     <style>
         :root {
@@ -57,6 +62,16 @@
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         
         ::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        /* Typography adjustments for Readme Modal */
+        .prose pre {
+            background-color: #1f2937 !important;
+            border-radius: 0.5rem;
+        }
+        .prose img {
+            max-width: 100%;
+            border-radius: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -214,6 +229,35 @@
         </div>
     </div>
 
+    <!-- Readme Modal -->
+    <div id="readmeModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="modal-overlay absolute inset-0" onclick="UI.closeModal('readmeModal')"></div>
+        <div class="bg-white w-full sm:w-[800px] h-[85vh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-0 relative z-10 transform transition-transform translate-y-full" id="readmeModalContent">
+            <div class="p-4 sm:p-6 pb-4 border-b border-gray-100 shrink-0">
+                <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 sm:hidden"></div>
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold truncate pr-4 text-gray-800" id="readmeTitle"></h2>
+                    <button onclick="UI.closeModal('readmeModal')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition shrink-0">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-4 sm:p-6 overflow-y-auto grow bg-gray-50/50">
+                <div id="readmeLoading" class="hidden flex flex-col items-center justify-center py-20 text-blue-500">
+                    <div class="loader mb-4"></div>
+                    <p class="text-sm font-medium">Readmeを取得中...</p>
+                </div>
+                <div id="readmeError" class="hidden flex flex-col items-center justify-center py-20 text-red-400">
+                    <i class="fa-solid fa-circle-exclamation text-5xl mb-4"></i>
+                    <p id="readmeErrorMessage" class="text-sm font-medium">Readmeが見つかりませんでした。</p>
+                </div>
+                <div id="readmeBody" class="prose prose-sm sm:prose-base prose-blue max-w-none">
+                    <!-- Markdown content will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] sm:w-auto items-center"></div>
 
@@ -319,24 +363,34 @@
         const workerCode = `
             self.onmessage = async function(e) {
                 const { type, payload } = e.data;
+                console.log('[Worker] Received message:', type, 'payload:', payload);
                 
-                // --- 既存の個別メタデータ取得 ---
+                // --- 個別メタデータ取得 ---
                 if (type === 'FETCH_METADATA') {
                     const { id, url, pat, lastFetch } = payload;
                     try {
-                        const match = url.match(/https?:\\/\\/([\\w-]+)\\.github\\.io\\/?([\\w-]+)?/i);
+                        // バグ修正: URL末尾のスラッシュを除去し、リポジトリ名にハイフン・ドットが含まれるケースに対応
+                        const cleanUrl = url.replace(/\\/$/, "");
+                        const match = cleanUrl.match(/https?:\\/\\/([\\w\\-]+)\\.github\\.io\\/?([\\w\\-\\.]+)?/i);
+                        
+                        console.log('[Worker] FETCH_METADATA Parsed URL match:', match);
+                        
                         if (match) {
                             const user = match[1];
                             const repo = match[2];
                             const apiUrl = repo ? \`https://api.github.com/repos/\${user}/\${repo}\` : \`https://api.github.com/users/\${user}\`;
+                            
+                            console.log('[Worker] Requesting GitHub API:', apiUrl);
                             
                             const headers = {};
                             if (pat) headers['Authorization'] = \`Bearer \${pat}\`;
                             if (lastFetch) headers['If-Modified-Since'] = new Date(lastFetch).toUTCString();
                             
                             const res = await fetch(apiUrl, { headers });
+                            console.log('[Worker] API Response:', res.status, res.statusText);
                             
                             if (res.status === 304) {
+                                console.log('[Worker] Data not modified (304) for ID:', id);
                                 self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'not_modified' } });
                                 return;
                             }
@@ -346,17 +400,26 @@
                                 const title = repo ? data.name : (data.name || \`\${user}'s Page\`);
                                 const description = data.description || "";
                                 const lastUpdated = data.updated_at || new Date().toISOString();
-                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, title, description, lastUpdated, status: 'success' } });
+                                const githubRepoUrl = data.html_url || \`https://github.com/\${user}/\${repo || user+'.github.io'}\`;
+                                
+                                console.log('[Worker] Sending SUCCESS for ID:', id, 'Title:', title);
+                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, title, description, lastUpdated, githubRepoUrl, status: 'success' } });
+                                return;
+                            } else {
+                                const errData = await res.text();
+                                console.error('[Worker] API Error Data:', errData);
+                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: \`API Error \${res.status}\` } });
                                 return;
                             }
                         }
-                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: 'Invalid URL or API Error' } });
+                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: 'Invalid URL Format' } });
                     } catch (err) {
+                        console.error('[Worker] Exception in FETCH_METADATA:', err);
                         self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: err.message } });
                     }
                 }
                 
-                // --- 新規: ユーザーリポジトリからのPages自動検出 ---
+                // --- ユーザーリポジトリからのPages自動検出 ---
                 else if (type === 'SYNC_USER_REPOS') {
                     const { pat } = payload;
                     try {
@@ -372,6 +435,7 @@
                                 }
                             });
                             
+                            console.log('[Worker] SYNC_USER_REPOS Page', page, 'Status:', res.status);
                             if (!res.ok) throw new Error('Failed to fetch repos. PAT may be invalid.');
                             
                             const repos = await res.json();
@@ -390,13 +454,43 @@
                                 url,
                                 title: repo.name,
                                 description: repo.description || "",
-                                githubUpdatedAt: repo.updated_at
+                                githubUpdatedAt: repo.updated_at,
+                                githubRepoUrl: repo.html_url
                             };
                         });
                         
+                        console.log('[Worker] SYNC_USER_REPOS Complete. Found pages:', discoveredPages.length);
                         self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'success', pages: discoveredPages } });
                     } catch (err) {
+                        console.error('[Worker] Exception in SYNC_USER_REPOS:', err);
                         self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'error', error: err.message } });
+                    }
+                }
+                
+                // --- Readme取得 ---
+                else if (type === 'FETCH_README') {
+                    const { id, owner, repo, pat } = payload;
+                    try {
+                        const apiUrl = \`https://api.github.com/repos/\${owner}/\${repo}/readme\`;
+                        console.log('[Worker] Fetching Readme from:', apiUrl);
+                        
+                        const headers = { 'Accept': 'application/vnd.github.v3.raw' };
+                        if (pat) headers['Authorization'] = \`Bearer \${pat}\`;
+                        
+                        const res = await fetch(apiUrl, { headers });
+                        console.log('[Worker] Readme API Response:', res.status);
+                        
+                        if (res.ok) {
+                            const readmeContent = await res.text();
+                            self.postMessage({ type: 'README_RESULT', payload: { id, status: 'success', readmeContent } });
+                        } else if (res.status === 404) {
+                            self.postMessage({ type: 'README_RESULT', payload: { id, status: 'error', error: 'Readmeが存在しません' } });
+                        } else {
+                            self.postMessage({ type: 'README_RESULT', payload: { id, status: 'error', error: 'Readmeの取得に失敗しました (' + res.status + ')' } });
+                        }
+                    } catch (err) {
+                        console.error('[Worker] Exception in FETCH_README:', err);
+                        self.postMessage({ type: 'README_RESULT', payload: { id, status: 'error', error: err.message } });
                     }
                 }
             };
@@ -480,6 +574,22 @@
             openHistoryModal() { 
                 App.renderBackups();
                 this.openModal('historyModal'); 
+            },
+            openReadmeModal(title) {
+                document.getElementById('readmeTitle').innerHTML = `<i class="fa-solid fa-book-open mr-2 text-blue-500"></i>${title}`;
+                document.getElementById('readmeLoading').classList.remove('hidden');
+                document.getElementById('readmeError').classList.add('hidden');
+                document.getElementById('readmeBody').innerHTML = '';
+                this.openModal('readmeModal');
+            },
+            setReadmeContent(html) {
+                document.getElementById('readmeLoading').classList.add('hidden');
+                document.getElementById('readmeBody').innerHTML = html;
+            },
+            setReadmeError(msg) {
+                document.getElementById('readmeLoading').classList.add('hidden');
+                document.getElementById('readmeError').classList.remove('hidden');
+                document.getElementById('readmeErrorMessage').innerText = msg;
             }
         };
 
@@ -561,6 +671,7 @@
             setupWorker() {
                 worker.onmessage = async (e) => {
                     const { type, payload } = e.data;
+                    console.log('[Main] Received from Worker:', type, payload);
                     
                     if (type === 'METADATA_RESULT') {
                         const pageIndex = this.pages.findIndex(p => p.id === payload.id);
@@ -576,15 +687,19 @@
 
                             if (payload.status === 'success') {
                                 if(!p.hasCustomTitle && payload.title) p.title = payload.title;
-                                p.description = payload.description || p.description;
+                                p.description = payload.description !== undefined ? payload.description : p.description;
                                 p.githubUpdatedAt = payload.lastUpdated;
                                 p.lastFetch = new Date().toISOString();
+                                if(payload.githubRepoUrl) p.githubRepoUrl = payload.githubRepoUrl;
                                 this.syncProgress.success++;
+                                console.log('[Main] METADATA updated successfully:', p.title);
                             } else if (payload.status === 'not_modified') {
                                 p.lastFetch = new Date().toISOString();
                                 this.syncProgress.skipped++;
+                                console.log('[Main] METADATA not modified for:', p.title);
                             } else {
                                 this.syncProgress.error++;
+                                console.warn('[Main] METADATA error:', payload.error);
                             }
                             
                             p.isSyncing = false;
@@ -611,28 +726,27 @@
                             let updatedCount = 0;
                             
                             for (const discovered of payload.pages) {
-                                // URL末尾のスラッシュ有無を吸収して比較
                                 const cleanDiscUrl = discovered.url.toLowerCase().replace(/\/$/, "");
                                 const existingIndex = this.pages.findIndex(p => p.url.toLowerCase().replace(/\/$/, "") === cleanDiscUrl);
                                 
                                 if (existingIndex > -1) {
-                                    // Update
                                     const p = this.pages[existingIndex];
                                     if (!p.hasCustomTitle) p.title = discovered.title;
                                     p.description = discovered.description || p.description;
                                     p.githubUpdatedAt = discovered.githubUpdatedAt;
                                     p.lastFetch = new Date().toISOString();
+                                    if(discovered.githubRepoUrl) p.githubRepoUrl = discovered.githubRepoUrl;
                                     await db.put('pages', p);
                                     this.updateCardDOM(p);
                                     updatedCount++;
                                 } else {
-                                    // Add new
                                     const newPage = {
                                         id: 'page_' + now + '_' + Math.random().toString(36).substr(2, 9),
                                         url: discovered.url,
                                         title: discovered.title,
                                         hasCustomTitle: false,
                                         description: discovered.description || '',
+                                        githubRepoUrl: discovered.githubRepoUrl,
                                         memo: '',
                                         isFavorite: false,
                                         createdAt: now,
@@ -647,7 +761,7 @@
                                 }
                             }
                             
-                            if (addedCount > 0) this.renderList();
+                            if (addedCount > 0 || updatedCount > 0) this.renderList();
                             if (addedCount > 0 || updatedCount > 0) {
                                 UI.showToast(`リポジトリから ${addedCount}件追加、${updatedCount}件更新`, "success");
                             }
@@ -655,8 +769,31 @@
                             UI.showToast("リポジトリ情報の取得に失敗しました", "error");
                         }
                         
-                        // 自動検出が終わったら、手動追加分などの個別更新へ移行
                         this.syncIndividualPages();
+                    }
+                    
+                    // Readme取得結果の処理
+                    else if (type === 'README_RESULT') {
+                        if (payload.status === 'success') {
+                            const pageIndex = this.pages.findIndex(p => p.id === payload.id);
+                            if (pageIndex > -1) {
+                                const p = this.pages[pageIndex];
+                                p.readmeContent = payload.readmeContent;
+                                p.readmeLastFetch = new Date().toISOString();
+                                db.put('pages', p).catch(console.error);
+                                
+                                const modal = document.getElementById('readmeModal');
+                                if (!modal.classList.contains('hidden')) {
+                                    const html = DOMPurify.sanitize(marked.parse(p.readmeContent));
+                                    UI.setReadmeContent(html);
+                                }
+                            }
+                        } else {
+                            const modal = document.getElementById('readmeModal');
+                            if (!modal.classList.contains('hidden')) {
+                                UI.setReadmeError(payload.error || "Readmeが見つかりませんでした");
+                            }
+                        }
                     }
                 };
             },
@@ -699,7 +836,7 @@
             },
 
             validateUrl(url) {
-                return /^https?:\/\/([\w-]+)\.github\.io/i.test(url);
+                return /^https?:\/\/([\w\-]+)\.github\.io/i.test(url);
             },
 
             async handleSavePage(e) {
@@ -714,13 +851,19 @@
                     return;
                 }
 
+                console.log('[Main] handleSavePage - URL:', url, 'Title:', title);
+
                 const now = Date.now();
                 let page = null;
 
                 if (idInput) {
                     page = this.pages.find(p => p.id === idInput);
                     if(page) {
-                        if (page.url !== url) page.lastFetch = null;
+                        // URLが変更された場合のみキャッシュリセット
+                        if (page.url !== url) {
+                            page.lastFetch = null;
+                            console.log('[Main] URL changed, resetting lastFetch cache');
+                        }
                         page.url = url;
                         page.hasCustomTitle = title !== '';
                         page.title = title || page.title;
@@ -752,8 +895,11 @@
                 this.renderList();
                 UI.showToast(idInput ? "更新しました" : "追加しました", "success");
 
+                // URL変更時または新規追加時、または未取得の場合にメタデータを再取得
                 if(!idInput || !page.lastFetch) {
-                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: page.id, url: page.url, pat: this.getGithubPat(), lastFetch: page.lastFetch } });
+                    const pat = this.getGithubPat();
+                    console.log('[Main] Dispatching FETCH_METADATA for newly added/edited page. PAT available:', !!pat);
+                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: page.id, url: page.url, pat: pat, lastFetch: page.lastFetch } });
                 }
             },
 
@@ -784,19 +930,55 @@
                 }
             },
 
-            renderPages() {
-                this.filterMode = 'all';
-                this.renderList();
-            },
+            // Readme表示リクエスト処理
+            showReadme(id) {
+                const page = this.pages.find(p => p.id === id);
+                if (!page) return;
+                
+                UI.openReadmeModal(page.title);
 
-            renderFavorites() {
-                this.filterMode = 'favorites';
-                this.renderList();
+                const CACHE_TTL = 60 * 60 * 1000; // 1時間キャッシュ
+                const now = Date.now();
+                
+                if (page.readmeContent && page.readmeLastFetch && (now - new Date(page.readmeLastFetch).getTime() < CACHE_TTL)) {
+                    console.log('[Main] Using cached Readme content');
+                    const html = DOMPurify.sanitize(marked.parse(page.readmeContent));
+                    UI.setReadmeContent(html);
+                    return;
+                }
+
+                const cleanUrl = page.url.replace(/\/$/, '');
+                const domainMatch = cleanUrl.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
+                const owner = domainMatch ? domainMatch[1] : null;
+                let repo = (domainMatch && domainMatch[2]) ? domainMatch[2] : `${owner}.github.io`;
+
+                console.log('[Main] Requesting Readme for:', owner, '/', repo);
+
+                if (!owner) {
+                    UI.setReadmeError("リポジトリ情報を特定できません");
+                    return;
+                }
+
+                const pat = this.getGithubPat();
+                worker.postMessage({
+                    type: 'FETCH_README',
+                    payload: {
+                        id: page.id,
+                        owner: owner,
+                        repo: repo,
+                        pat: pat
+                    }
+                });
             },
 
             createCardElement(page) {
-                const domainMatch = page.url.match(/https?:\/\/([\w-]+)\.github\.io/i);
+                const cleanUrl = page.url.replace(/\/$/, '');
+                const domainMatch = cleanUrl.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
                 const username = domainMatch ? domainMatch[1] : 'Unknown';
+                let repoName = (domainMatch && domainMatch[2]) ? domainMatch[2] : `${username}.github.io`;
+                
+                // fallback to parsed URL if githubRepoUrl is not explicitly stored
+                const repoUrl = page.githubRepoUrl || `https://github.com/${username}/${repoName}`;
                 
                 const card = document.createElement('div');
                 card.id = `card-${page.id}`;
@@ -816,6 +998,16 @@
                     <p class="text-xs text-blue-600 mb-2 truncate">${page.url}</p>
                     ${page.description ? `<p class="text-sm text-gray-600 line-clamp-2 mb-3 flex-grow">${page.description}</p>` : '<div class="flex-grow"></div>'}
                     ${page.memo ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3"><i class="fa-solid fa-note-sticky"></i> ${page.memo}</div>` : ''}
+                    
+                    <div class="flex gap-2 mb-3 mt-1">
+                        <a href="${repoUrl}" target="_blank" rel="noopener,noreferrer" onclick="event.stopPropagation()" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-[11px] text-gray-600 font-medium transition shadow-sm">
+                            <i class="fa-brands fa-github text-sm"></i> リポジトリ
+                        </a>
+                        <button onclick="event.stopPropagation(); App.showReadme('${page.id}')" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg text-[11px] text-blue-700 font-medium transition shadow-sm">
+                            <i class="fa-solid fa-book-open text-sm"></i> Readme
+                        </button>
+                    </div>
+
                     <div class="flex justify-between items-center mt-auto border-t border-gray-100 pt-3">
                         <span class="text-[10px] ${page.isSyncing ? 'text-blue-500 font-bold' : 'text-gray-400'}">
                             ${page.isSyncing ? '<i class="fa-solid fa-arrows-rotate fa-spin"></i> 同期中...' : (page.githubUpdatedAt ? '更新: '+new Date(page.githubUpdatedAt).toLocaleDateString() : '')}
@@ -839,6 +1031,16 @@
                     const newCard = this.createCardElement(page);
                     oldCard.replaceWith(newCard);
                 }
+            },
+
+            renderPages() {
+                this.filterMode = 'all';
+                this.renderList();
+            },
+
+            renderFavorites() {
+                this.filterMode = 'favorites';
+                this.renderList();
             },
 
             renderList() {
@@ -979,7 +1181,7 @@
                 }
             },
 
-            // --- Async Bulk Sync (Optimized for speed & rate limits) ---
+            // --- Async Bulk Sync ---
             cancelSync() {
                 if (localStorage.getItem('syncInProgress') === 'true') {
                     this.syncCancelRequested = true;
@@ -997,6 +1199,8 @@
                 const pat = this.getGithubPat();
                 const syncStatusEl = document.getElementById('sync-status');
                 const syncTextEl = document.getElementById('sync-progress-text');
+                
+                console.log('[Main] syncAll started. PAT available:', !!pat);
 
                 if (pat) {
                     UI.showToast("リポジトリからPagesを自動検出しています...");
@@ -1025,9 +1229,12 @@
                 this.syncProgress = { total: this.pages.length, current: 0, success: 0, skipped: 0, error: 0 };
                 const syncStatusEl = document.getElementById('sync-status');
                 const syncTextEl = document.getElementById('sync-progress-text');
+                const pat = this.getGithubPat();
                 
                 syncStatusEl.classList.remove('hidden');
                 syncTextEl.innerText = `個別更新中... (0/${this.syncProgress.total})`;
+
+                console.log(`[Main] Starting individual sync for ${this.pages.length} pages. PAT:`, !!pat);
 
                 this.pages.forEach(p => {
                     p.isSyncing = true;
@@ -1037,7 +1244,7 @@
                         payload: { 
                             id: p.id, 
                             url: p.url, 
-                            pat: this.getGithubPat(),
+                            pat: pat,
                             lastFetch: p.lastFetch || null
                         } 
                     });
