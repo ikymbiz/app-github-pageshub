@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -53,6 +52,7 @@
         .touch-target { min-width: 48px; min-height: 48px; display: flex; align-items: center; justify-content: center; }
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     </style>
 </head>
 <body>
@@ -128,6 +128,16 @@
             <!-- Existing Page Form -->
             <form id="pageForm" onsubmit="App.handleSavePage(event)" class="space-y-4">
                 <input type="hidden" id="pageId">
+
+                <!-- AI Assist Section -->
+                <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col gap-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-purple-800"><i class="fa-solid fa-robot"></i> AIアシスト生成</span>
+                        <button type="button" onclick="App.generateMetaAI()" class="text-xs px-3 py-2 bg-purple-600 text-white rounded-lg shadow-sm font-bold flex items-center gap-1 ripple-target"><i class="fa-solid fa-wand-magic-sparkles"></i> 情報を自動入力</button>
+                    </div>
+                    <p class="text-[10px] text-purple-600">入力されたURLやタイトルから、グループ・タグ・概要をAIが予測して埋めます。</p>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">GitHub Pages URL *</label>
                     <input type="url" id="pageUrl" required placeholder="https://user.github.io/repo/" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:ring-2 focus:ring-blue-500">
@@ -138,24 +148,25 @@
                     <input type="text" id="pageTitle" placeholder="自動取得されます" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">グループ (任意・整理用)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">グループ (AI自動入力・任意)</label>
                     <input type="text" id="pageGroup" placeholder="例: クライアントA" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:ring-2 focus:ring-blue-500" list="groupList">
                     <datalist id="groupList"></datalist>
                 </div>
                 <div>
-                    <label class="flex justify-between text-sm font-medium text-gray-700 mb-1">
-                        <span>タグ (カンマ区切り)</span>
-                        <button type="button" onclick="App.generateTagsAI()" class="text-purple-600 font-bold flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> AIで生成</button>
-                    </label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">タグ (AI自動入力・カンマ区切り)</label>
                     <input type="text" id="pageTags" placeholder="例: ツール, 予約" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">メモ</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">概要 (AI要約・任意)</label>
+                    <textarea id="pageDesc" rows="2" placeholder="リポジトリの概要やAIによる要約" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">個人的なメモ</label>
                     <textarea id="pageMemo" rows="2" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
                 <div class="flex gap-3 pb-safe pt-2">
                     <button type="button" onclick="history.back()" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium ripple-target min-h-[48px]">キャンセル</button>
-                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium flex justify-center items-center gap-2 ripple-target min-h-[48px]"><i class="fa-solid fa-check"></i> 保存</button>
+                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium flex justify-center items-center gap-2 ripple-target min-h-[48px]"><i class="fa-solid fa-check"></i> 保存して更新</button>
                 </div>
             </form>
 
@@ -180,7 +191,7 @@
         </div>
     </div>
 
-    <!-- Settings & History Modals (Omitted unchanged details, keeping minimal structure) -->
+    <!-- Settings Modal -->
     <div id="settingsModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
         <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
         <div class="bg-white w-full sm:w-[450px] max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="settingsModalContent">
@@ -191,7 +202,8 @@
                 </div>
                 <div class="p-4 bg-purple-50 rounded-xl border"><h3 class="font-bold text-purple-800 mb-2">AI連携 (Gemini)</h3>
                     <input type="password" id="aiApiKey" placeholder="AI API Key" class="w-full border rounded-lg py-3 px-3 mb-2">
-                    <textarea id="aiPrompt" rows="2" class="w-full border rounded-lg py-2 px-3 mb-2"></textarea>
+                    <textarea id="aiPrompt" rows="2" class="w-full border rounded-lg py-2 px-3 mb-2 hidden"></textarea>
+                    <p class="text-[10px] text-gray-500 mt-1">※APIキーはデバイス内にのみ保存されます。</p>
                 </div>
                 <button onclick="App.saveSettings()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-medium ripple-target min-h-[48px]">保存</button>
             </div>
@@ -199,16 +211,17 @@
         </div>
     </div>
 
+    <!-- History Modal -->
     <div id="historyModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
         <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
         <div class="bg-white w-full sm:w-[400px] rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="historyModalContent">
             <h2 class="text-xl font-bold mb-4">バックアップ履歴</h2>
-            <div id="backupList" class="space-y-3 max-h-60 overflow-y-auto pr-1 hide-scroll"></div>
+            <div id="backupList" class="space-y-3 max-h-60 overflow-y-auto pr-1 hide-scroll text-sm text-gray-500 text-center py-4">履歴はありません（開発中）</div>
             <button onclick="history.back()" class="w-full mt-6 py-3 bg-gray-100 rounded-xl mb-safe min-h-[48px]">閉じる</button>
         </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
+    <!-- Delete Modal -->
     <div id="deleteModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
         <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
         <div class="bg-white w-full sm:w-[400px] rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="deleteModalContent">
@@ -246,7 +259,7 @@
         </div>
     </div>
 
-    <!-- Readme Modal (Enhanced with Edit) -->
+    <!-- Readme Modal -->
     <div id="readmeModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
         <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
         <div class="bg-white w-full sm:w-[800px] h-[90vh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-0 relative z-10 transform transition-transform translate-y-full" id="readmeModalContent">
@@ -263,7 +276,6 @@
                 <div id="readmeLoading" class="hidden flex justify-center py-20 text-blue-500"><div class="loader"></div></div>
                 <div id="readmeError" class="hidden text-center py-20 text-red-400">
                     <p class="mb-4">Readmeが見つかりません</p>
-                    <button onclick="App.generateReadmeAI()" class="px-6 py-3 bg-purple-600 text-white rounded-xl shadow-lg"><i class="fa-solid fa-wand-magic-sparkles"></i> AIで自動生成</button>
                 </div>
                 <div id="readmeBody" class="prose prose-sm sm:prose-base prose-blue max-w-none"></div>
             </div>
@@ -403,9 +415,13 @@
                 if (pageId) {
                     const p = App.pages.find(x => x.id === pageId);
                     if(p) {
-                        document.getElementById('pageId').value = p.id; document.getElementById('pageUrl').value = p.url;
-                        document.getElementById('pageTitle').value = p.title || ''; document.getElementById('pageGroup').value = p.group || '';
-                        document.getElementById('pageMemo').value = p.memo || ''; document.getElementById('pageTags').value = (p.tags||[]).join(', ');
+                        document.getElementById('pageId').value = p.id; 
+                        document.getElementById('pageUrl').value = p.url || '';
+                        document.getElementById('pageTitle').value = p.title || ''; 
+                        document.getElementById('pageGroup').value = p.group || '';
+                        document.getElementById('pageTags').value = (p.tags||[]).join(', ');
+                        document.getElementById('pageDesc').value = p.description || '';
+                        document.getElementById('pageMemo').value = p.memo || ''; 
                     }
                 } else document.getElementById('pageId').value = '';
                 this.openModal('addModal');
@@ -436,12 +452,20 @@
                     const { type, payload } = e.data;
                     if (type === 'METADATA_RESULT' && payload.status === 'success') {
                         const p = this.pages.find(x => x.id === payload.id);
-                        if(p) { p.title = p.hasCustomTitle ? p.title : payload.title; p.githubUpdatedAt = payload.lastUpdated; p.githubRepoUrl = payload.githubRepoUrl; p.lastFetch = new Date().toISOString(); db.put('pages', p); this.renderList(); }
+                        if(p) { 
+                            p.title = p.hasCustomTitle ? p.title : payload.title; 
+                            if(!p.description) p.description = payload.description; // 概要が空の場合のみGitHubから補完
+                            p.githubUpdatedAt = payload.lastUpdated; 
+                            p.githubRepoUrl = payload.githubRepoUrl; 
+                            p.lastFetch = new Date().toISOString(); 
+                            db.put('pages', p); 
+                            this.renderList(); 
+                        }
                     } else if (type === 'CREATE_REPO_RESULT') {
                         document.getElementById('createRepoBtn').innerHTML = '<i class="fa-solid fa-rocket"></i> 作成する';
                         if (payload.status === 'success') {
                             const now = Date.now();
-                            const p = { id: 'p_'+now, url: `https://${payload.data.owner.login}.github.io/${payload.data.name}/`, title: payload.data.name, group: '未分類', tags: [], memo: '', createdAt: now, updatedAt: now };
+                            const p = { id: 'p_'+now, url: `https://${payload.data.owner.login}.github.io/${payload.data.name}/`, title: payload.data.name, description: payload.data.description, group: '未分類', tags: [], memo: '', createdAt: now, updatedAt: now };
                             this.pages.unshift(p); await db.put('pages', p); this.renderList(); history.back(); UI.showToast("リポジトリを作成しました", "success");
                         } else UI.showToast("リポジトリ作成に失敗しました。PATの権限等を確認してください", "error");
                     } else if (type === 'DELETE_REPO_RESULT') {
@@ -485,11 +509,13 @@
                 const url = document.getElementById('pageUrl').value.trim(); const id = document.getElementById('pageId').value;
                 const title = document.getElementById('pageTitle').value.trim(); const group = document.getElementById('pageGroup').value.trim();
                 const tags = document.getElementById('pageTags').value.split(',').map(t=>t.trim()).filter(t=>t);
-                const memo = document.getElementById('pageMemo').value.trim(); const now = Date.now();
+                const desc = document.getElementById('pageDesc').value.trim();
+                const memo = document.getElementById('pageMemo').value.trim(); 
+                const now = Date.now();
                 
                 let p = id ? this.pages.find(x => x.id === id) : { id: 'p_'+now, url, isFavorite: false, createdAt: now };
                 p.url = url; p.hasCustomTitle = !!title; p.title = title || p.title || '取得中...'; p.group = group || '未分類';
-                p.tags = tags; p.memo = memo; p.updatedAt = now;
+                p.tags = tags; p.description = desc; p.memo = memo; p.updatedAt = now;
                 
                 if(!id) this.pages.unshift(p); await db.put('pages', p);
                 history.back(); this.renderList(); UI.showToast("保存しました", "success");
@@ -518,22 +544,37 @@
                 }
             },
 
-            async generateTagsAI() {
+            // Requirements 2, 3, 4: AI Meta Generation
+            async generateMetaAI() {
                 const apiKey = localStorage.getItem('aiApiKey');
                 if(!apiKey) return UI.showToast("設定からGemini API Keyを登録してください", "error");
-                const url = document.getElementById('pageUrl').value || document.getElementById('pageTitle').value;
-                if(!url) return UI.showToast("URLまたはタイトルを入力してください", "info");
+                const url = document.getElementById('pageUrl').value;
+                const title = document.getElementById('pageTitle').value;
+                if(!url && !title) return UI.showToast("URLまたはタイトルを入力してください", "info");
                 
                 try {
-                    UI.showToast("AIがタグを生成中...", "info");
+                    UI.showToast("AIが情報を生成中...", "info");
+                    const prompt = `以下のプロジェクト情報から、アプリの整理に最適な「グループ名(文字列)」、「タグ(カンマ区切り文字列)」、「概要の要約(文字列)」を生成してください。必ず以下のJSON形式で出力してください。\nフォーマット: {"group": "...", "tags": "...", "description": "..."}\n情報: URL=${url}, Title=${title}`;
+                    
                     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                         method: 'POST', headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `以下のプロジェクト情報から、アプリのジャンルや技術を表すタグを3〜5個、カンマ区切りで出力してください。説明不要です。情報: ${url}` }]}] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }]}] })
                     });
                     const data = await res.json();
-                    document.getElementById('pageTags').value = data.candidates[0].content.parts[0].text.trim();
-                    UI.showToast("タグを生成しました", "success");
-                } catch(e) { UI.showToast("生成に失敗しました", "error"); }
+                    let text = data.candidates[0].content.parts[0].text;
+                    // Clean up potential markdown formatting
+                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const result = JSON.parse(text);
+
+                    if(result.group) document.getElementById('pageGroup').value = result.group;
+                    if(result.tags) document.getElementById('pageTags').value = result.tags;
+                    if(result.description) document.getElementById('pageDesc').value = result.description;
+
+                    UI.showToast("生成しました。確認して保存してください。", "success");
+                } catch(e) { 
+                    console.error("AI Generation Error", e);
+                    UI.showToast("生成に失敗しました。", "error"); 
+                }
             },
 
             openActions(id) {
@@ -569,7 +610,7 @@
                 const isEdit = document.getElementById('readmeEditArea').classList.contains('hidden');
                 document.getElementById('readmeViewArea').classList.toggle('hidden', isEdit);
                 document.getElementById('readmeEditArea').classList.toggle('hidden', !isEdit);
-                document.getElementById('readmeEditBtn').classList.toggle('hidden', isEdit); // Hide edit button while editing
+                document.getElementById('readmeEditBtn').classList.toggle('hidden', isEdit); 
                 if(isEdit) {
                     const p = this.pages.find(x => x.id === this.currentReadmeId);
                     document.getElementById('readmeEditor').value = p.readmeContent || '';
@@ -604,11 +645,21 @@
                     <div class="card p-4 relative cursor-pointer flex flex-col h-full ripple-target" onclick="window.open('${p.url}', '_blank')">
                         <div class="flex justify-between items-start mb-2">
                             <h3 class="font-bold text-gray-800 truncate text-lg pr-2">${p.title}</h3>
-                            <button onclick="event.stopPropagation(); const px=App.pages.find(x=>x.id==='${p.id}'); px.isFavorite=!px.isFavorite; db.put('pages', px).then(()=>App.renderList());" class="touch-target text-xl ${p.isFavorite ? 'text-yellow-400' : 'text-gray-200'} transition -mr-2 -mt-2"><i class="fa-solid fa-star"></i></button>
+                            <div class="flex items-center gap-1 shrink-0">
+                                ${p.githubRepoUrl ? `<button onclick="event.stopPropagation(); window.open('${p.githubRepoUrl}', '_blank')" class="touch-target text-xl text-gray-400 hover:text-gray-800 transition -mt-2" title="GitHubリポジトリ"><i class="fa-brands fa-github"></i></button>` : ''}
+                                <button onclick="event.stopPropagation(); const px=App.pages.find(x=>x.id==='${p.id}'); px.isFavorite=!px.isFavorite; db.put('pages', px).then(()=>App.renderList());" class="touch-target text-xl ${p.isFavorite ? 'text-yellow-400' : 'text-gray-200'} transition -mr-2 -mt-2"><i class="fa-solid fa-star"></i></button>
+                            </div>
                         </div>
                         <p class="text-xs text-blue-600 mb-2 truncate">${p.url}</p>
+                        
+                        <!-- Description Area (Req 4) -->
+                        <p class="text-xs text-gray-600 mb-2 line-clamp-2">${p.description ? p.description : (p.memo ? p.memo : '<span class="text-gray-400 italic">概要がありません</span>')}</p>
+                        
                         ${p.tags && p.tags.length ? `<div class="flex gap-1 mb-2 flex-wrap">${p.tags.map(t=>`<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${t}</span>`).join('')}</div>` : ''}
-                        ${p.memo ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3 line-clamp-1"><i class="fa-solid fa-note-sticky"></i> ${p.memo}</div>` : '<div class="flex-grow"></div>'}
+                        
+                        <!-- Avoid showing duplicate memo if it's the same as description -->
+                        ${p.memo && p.memo !== p.description ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3 line-clamp-1"><i class="fa-solid fa-note-sticky"></i> ${p.memo}</div>` : '<div class="flex-grow"></div>'}
+                        
                         <div class="flex gap-2 mb-3 mt-1">
                             <button onclick="event.stopPropagation(); App.openReadme('${p.id}')" class="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold ripple-target"><i class="fa-solid fa-book-open"></i> Readme</button>
                             <button onclick="event.stopPropagation(); App.openActions('${p.id}')" class="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-gray-50 text-gray-700 rounded-xl text-xs font-bold ripple-target"><i class="fa-solid fa-play"></i> Actions</button>
