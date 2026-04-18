@@ -2,14 +2,15 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
     <title>My GitHub Pages Hub</title>
-    <!-- Tailwind CSS with Typography plugin for Readme Markdown rendering -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Marked.js for parsing Markdown -->
+    <!-- Marked.js & DOMPurify -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- DOMPurify for sanitizing HTML output to prevent XSS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <link rel="manifest" id="manifest" href="">
     <style>
@@ -19,13 +20,14 @@
             --text-main: #1f2937;
             --primary: #2563eb;
             --primary-hover: #1d4ed8;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
-            padding-bottom: 80px;
+            padding-bottom: calc(80px + var(--safe-bottom));
         }
         .card {
             background-color: var(--card-bg);
@@ -33,14 +35,12 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        .card:active {
-            transform: scale(0.98);
-        }
+        .card:active { transform: scale(0.98); }
         .bottom-nav {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
             border-top: 1px solid #e5e7eb;
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: var(--safe-bottom);
         }
         .modal-overlay {
             background-color: rgba(0, 0, 0, 0.5);
@@ -50,120 +50,135 @@
             border: 3px solid #f3f3f3;
             border-top: 3px solid var(--primary);
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 24px; height: 24px;
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .toast {
-            animation: slideUp 0.3s ease-out forwards, fadeOut 0.3s ease-in 2.7s forwards;
-        }
+        .toast { animation: slideUp 0.3s ease-out forwards, fadeOut 0.3s ease-in 2.7s forwards; }
         @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         
         ::-webkit-scrollbar { width: 0px; background: transparent; }
         
-        /* Typography adjustments for Readme Modal */
-        .prose pre {
-            background-color: #1f2937 !important;
-            border-radius: 0.5rem;
+        /* Ripple Effect */
+        .ripple-target { position: relative; overflow: hidden; }
+        .ripple {
+            position: absolute; border-radius: 50%;
+            transform: scale(0); animation: ripple-anim 600ms linear;
+            background-color: rgba(0, 0, 0, 0.15); pointer-events: none;
         }
-        .prose img {
-            max-width: 100%;
-            border-radius: 0.5rem;
-        }
+        .bg-blue-600 .ripple { background-color: rgba(255, 255, 255, 0.4); }
+        @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+        /* Typography */
+        .prose pre { background-color: #1f2937 !important; border-radius: 0.5rem; }
+        .prose img { max-width: 100%; border-radius: 0.5rem; }
+
+        /* 48dp Touch Targets */
+        .touch-target { min-width: 48px; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+        
+        /* Tag Scroll Hide */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body>
 
     <!-- Header -->
-    <header class="sticky top-0 z-10 bg-white/90 backdrop-blur-md shadow-sm px-4 py-4 flex justify-between items-center">
+    <header class="sticky top-0 z-10 bg-white/90 backdrop-blur-md shadow-sm px-4 py-3 flex justify-between items-center pt-[max(env(safe-area-inset-top),12px)]">
         <h1 class="text-xl font-bold flex items-center gap-2">
-            <i class="fa-brands fa-github text-2xl"></i> My Pages Hub
+            <i class="fa-brands fa-github text-2xl"></i> MyPages Hub
         </h1>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
             <span id="sync-status" class="text-xs text-blue-600 hidden bg-blue-50 px-3 py-1.5 rounded-full font-bold shadow-sm flex items-center gap-2">
                 <span><i class="fa-solid fa-arrows-rotate fa-spin mr-1"></i> <span id="sync-progress-text">同期中...</span></span>
-                <button onclick="App.cancelSync()" class="text-red-500 hover:text-red-700 ml-1 pl-2 border-l border-blue-200 transition">
-                    <i class="fa-solid fa-xmark"></i> 停止
+                <button onclick="App.cancelSync()" class="text-red-500 hover:text-red-700 ml-1 pl-2 border-l border-blue-200 transition touch-target">
+                    停止
                 </button>
             </span>
-            <button onclick="UI.openSettingsModal()" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition">
-                <i class="fa-solid fa-gear"></i>
+            <button onclick="UI.openSettingsModal()" class="touch-target rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition ripple-target">
+                <i class="fa-solid fa-gear text-lg"></i>
             </button>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="p-4">
-        <!-- Search & Filter -->
-        <div class="mb-6 relative">
+        <!-- Search -->
+        <div class="mb-4 relative">
             <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400"></i>
-            <input type="text" id="searchInput" placeholder="自身のPagesを検索..." class="w-full bg-white border border-gray-200 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition">
+            <input type="text" id="searchInput" placeholder="ページ・タグを検索..." class="w-full bg-white border border-gray-200 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition min-h-[48px]">
+        </div>
+        
+        <!-- Tag Filter -->
+        <div class="mb-6 overflow-x-auto hide-scroll flex gap-2 pb-2" id="tagFilterContainer">
+            <!-- Tags injected here -->
         </div>
 
         <!-- Pages List -->
-        <div id="pagesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Cards will be injected here -->
-        </div>
+        <div id="pagesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         
         <div id="emptyState" class="hidden flex flex-col items-center justify-center py-20 text-gray-400">
             <i class="fa-brands fa-github text-6xl mb-4 text-gray-300"></i>
-            <p>自身のGitHub Pagesがありません</p>
+            <p>ページがありません</p>
             <p class="text-xs mt-2 text-center px-4">設定からPATを登録して自動検出するか<br>右下の「＋」ボタンから追加してください</p>
         </div>
     </main>
 
     <!-- Bottom Navigation -->
-    <nav class="bottom-nav fixed bottom-0 w-full z-20 flex justify-around items-center py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button onclick="App.renderPages()" class="flex flex-col items-center text-blue-600 w-16">
+    <nav class="bottom-nav fixed bottom-0 w-full z-20 flex justify-around items-center py-1 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button onclick="App.renderPages()" class="flex flex-col items-center text-blue-600 touch-target w-16 ripple-target rounded-xl">
             <i class="fa-solid fa-house text-xl mb-1"></i>
             <span class="text-[10px] font-medium">ホーム</span>
         </button>
-        <button onclick="App.renderFavorites()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition w-16">
+        <button onclick="App.renderFavorites()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition touch-target w-16 ripple-target rounded-xl">
             <i class="fa-solid fa-star text-xl mb-1"></i>
             <span class="text-[10px] font-medium">お気に入り</span>
         </button>
         <!-- FAB Center -->
         <div class="relative -top-6">
-            <button onclick="UI.openAddModal()" class="w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center text-white text-2xl hover:bg-blue-700 transition transform hover:scale-105 active:scale-95">
+            <button onclick="UI.openAddModal()" class="w-14 h-14 bg-blue-600 rounded-full shadow-lg flex items-center justify-center text-white text-2xl hover:bg-blue-700 transition transform hover:scale-105 active:scale-95 ripple-target">
                 <i class="fa-solid fa-plus"></i>
             </button>
         </div>
-        <button onclick="App.syncAll()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition w-16">
+        <button onclick="App.syncAll()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition touch-target w-16 ripple-target rounded-xl">
             <i class="fa-solid fa-rotate-right text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">一括同期</span>
+            <span class="text-[10px] font-medium">同期</span>
         </button>
-        <button onclick="UI.openHistoryModal()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition w-16">
+        <button onclick="UI.openHistoryModal()" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition touch-target w-16 ripple-target rounded-xl">
             <i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">履歴/復元</span>
+            <span class="text-[10px] font-medium">復元</span>
         </button>
     </nav>
 
     <!-- Add/Edit Modal -->
     <div id="addModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
-        <div class="modal-overlay absolute inset-0" onclick="UI.closeModal('addModal')"></div>
-        <div class="bg-white w-full sm:w-96 rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="addModalContent">
+        <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
+        <div class="bg-white w-full sm:w-[400px] max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="addModalContent">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 sm:hidden"></div>
             <h2 class="text-xl font-bold mb-4" id="modalTitle">ページの追加</h2>
             <form id="pageForm" onsubmit="App.handleSavePage(event)">
                 <input type="hidden" id="pageId">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">GitHub Pages URL *</label>
-                    <input type="url" id="pageUrl" required placeholder="https://username.github.io/repo/" class="w-full border border-gray-300 rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()">
+                    <input type="url" id="pageUrl" required placeholder="https://user.github.io/repo/" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()">
                     <p class="text-xs text-red-500 mt-1 hidden" id="urlError">有効なGitHub PagesのURLを入力してください。</p>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">タイトル (任意)</label>
-                    <input type="text" id="pageTitle" placeholder="自動取得されます" class="w-full border border-gray-300 rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()">
+                    <input type="text" id="pageTitle" placeholder="自動取得されます" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">タグ (カンマ区切り)</label>
+                    <input type="text" id="pageTags" placeholder="例: ツール, デザイン, 予約" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()">
                 </div>
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">メモ・タグ</label>
-                    <textarea id="pageMemo" rows="2" class="w-full border border-gray-300 rounded-xl py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()"></textarea>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">メモ</label>
+                    <textarea id="pageMemo" rows="2" class="w-full border border-gray-300 rounded-xl py-3 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500" oninput="App.saveDraft()"></textarea>
                 </div>
-                <div class="flex gap-3">
-                    <button type="button" onclick="UI.closeModal('addModal')" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition">キャンセル</button>
-                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2">
+                <div class="flex gap-3 pb-safe">
+                    <button type="button" onclick="history.back()" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition ripple-target min-h-[48px]">キャンセル</button>
+                    <button type="submit" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition flex justify-center items-center gap-2 ripple-target min-h-[48px]">
                         <i class="fa-solid fa-check"></i> 保存
                     </button>
                 </div>
@@ -171,1091 +186,664 @@
         </div>
     </div>
 
-    <!-- Settings & Backup Modal -->
+    <!-- Settings Modal -->
     <div id="settingsModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
-        <div class="modal-overlay absolute inset-0" onclick="UI.closeModal('settingsModal')"></div>
-        <div class="bg-white w-full sm:w-96 max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="settingsModalContent">
+        <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
+        <div class="bg-white w-full sm:w-[450px] max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="settingsModalContent">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 sm:hidden"></div>
             <h2 class="text-xl font-bold mb-4">データ管理・設定</h2>
             
             <div class="space-y-4">
                 <!-- PAT Settings -->
-                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 relative overflow-hidden">
-                    <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">重要</div>
-                    <h3 class="font-bold text-gray-800 mb-2"><i class="fa-brands fa-github"></i> API Key (PAT)</h3>
-                    <p class="text-xs text-gray-600 mb-3">自身の公開・プライベートリポジトリからGitHub Pagesを<strong>自動検出・一括同期</strong>するために必須です。<br>APIレートリミットも大幅に緩和されます。</p>
+                <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 relative">
+                    <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg rounded-tr-xl">必須級</div>
+                    <h3 class="font-bold text-gray-800 mb-2"><i class="fa-brands fa-github"></i> GitHub PAT</h3>
+                    <p class="text-xs text-gray-600 mb-3">リポジトリの自動検出・APIリミット解除に必要。</p>
                     <div class="flex gap-2">
-                        <input type="password" id="githubPat" placeholder="ghp_..." class="flex-1 border border-gray-300 rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button onclick="App.saveGithubPat()" class="py-2 px-4 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 transition">保存</button>
+                        <input type="password" id="githubPat" placeholder="ghp_..." class="flex-1 border border-gray-300 rounded-lg py-3 px-3 text-sm min-h-[48px]">
+                        <button onclick="App.saveSettings()" class="min-h-[48px] px-4 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-900 ripple-target">保存</button>
                     </div>
                 </div>
 
-                <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                    <h3 class="font-bold text-blue-800 mb-2"><i class="fa-solid fa-file-export"></i> エクスポート</h3>
-                    <p class="text-sm text-blue-600 mb-3">自身の全PagesデータをJSONとしてバックアップします。</p>
-                    <button onclick="App.exportData()" class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">ダウンロード</button>
+                <!-- AI Integration Settings -->
+                <div class="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                    <h3 class="font-bold text-purple-800 mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i> AI連携 (Gemini推奨)</h3>
+                    <p class="text-xs text-purple-600 mb-3">Readmeがない場合、AIがリポジトリ情報から自動生成します。</p>
+                    <select id="aiModel" class="w-full border border-purple-200 rounded-lg py-3 px-3 mb-2 text-sm min-h-[48px] bg-white">
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (推奨・高速)</option>
+                    </select>
+                    <input type="password" id="aiApiKey" placeholder="AI API Key" class="w-full border border-purple-200 rounded-lg py-3 px-3 mb-2 text-sm min-h-[48px]">
+                    <textarea id="aiPrompt" rows="2" placeholder="システムプロンプト: 以下のプロジェクト情報を基に綺麗なMarkdown形式のReadmeを作成して..." class="w-full border border-purple-200 rounded-lg py-2 px-3 text-sm mb-2"></textarea>
+                    <button onclick="App.saveSettings()" class="w-full py-3 bg-purple-600 text-white rounded-lg text-sm font-medium ripple-target min-h-[48px]">AI設定を保存</button>
                 </div>
 
-                <div class="p-4 bg-green-50 rounded-xl border border-green-100">
-                    <h3 class="font-bold text-green-800 mb-2"><i class="fa-solid fa-file-import"></i> インポート</h3>
-                    <p class="text-sm text-green-600 mb-3">JSONファイルからデータを復元します。</p>
-                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="App.importData(event)">
-                    <button onclick="document.getElementById('importFile').click()" class="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium">ファイルを選択</button>
+                <!-- Export/Import -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="App.exportData()" class="py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-sm font-bold ripple-target min-h-[48px]"><i class="fa-solid fa-file-export"></i> エクスポート</button>
+                    <div class="relative">
+                        <input type="file" id="importFile" accept=".json" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="App.importData(event)">
+                        <button class="w-full py-3 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-bold ripple-target min-h-[48px]"><i class="fa-solid fa-file-import"></i> インポート</button>
+                    </div>
                 </div>
                 
-                <div class="p-4 bg-red-50 rounded-xl border border-red-100">
-                    <h3 class="font-bold text-red-800 mb-2"><i class="fa-solid fa-trash"></i> 全データ削除</h3>
-                    <button onclick="App.clearAllData()" class="w-full py-2 bg-red-600 text-white rounded-lg text-sm font-medium">初期化</button>
+                <button onclick="App.clearAllData()" class="w-full py-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold ripple-target min-h-[48px]"><i class="fa-solid fa-trash"></i> 全データ初期化</button>
+                
+                <div class="text-center mt-2">
+                    <button onclick="UI.openPrivacyModal()" class="text-xs text-gray-500 underline py-2 touch-target w-full text-center">プライバシーポリシー</button>
                 </div>
             </div>
             
-            <button onclick="UI.closeModal('settingsModal')" class="w-full mt-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition">閉じる</button>
+            <button onclick="history.back()" class="w-full mt-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition ripple-target min-h-[48px] mb-safe">閉じる</button>
         </div>
     </div>
 
-    <!-- Backup History Modal -->
+    <!-- History Modal -->
     <div id="historyModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
-        <div class="modal-overlay absolute inset-0" onclick="UI.closeModal('historyModal')"></div>
-        <div class="bg-white w-full sm:w-96 rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="historyModalContent">
+        <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
+        <div class="bg-white w-full sm:w-[400px] rounded-t-3xl sm:rounded-3xl p-6 relative z-10 transform transition-transform translate-y-full" id="historyModalContent">
             <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 sm:hidden"></div>
-            <h2 class="text-xl font-bold mb-1">5世代バックアップ</h2>
+            <h2 class="text-xl font-bold mb-1">バックアップ履歴</h2>
             <p class="text-xs text-gray-500 mb-4">自動保存された過去の状態へ復元できます</p>
-            
-            <div id="backupList" class="space-y-3 max-h-60 overflow-y-auto pr-1">
-                <!-- Backup items injected here -->
-            </div>
-            
-            <button onclick="UI.closeModal('historyModal')" class="w-full mt-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition">閉じる</button>
+            <div id="backupList" class="space-y-3 max-h-60 overflow-y-auto pr-1 hide-scroll"></div>
+            <button onclick="history.back()" class="w-full mt-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition ripple-target min-h-[48px] mb-safe">閉じる</button>
         </div>
     </div>
 
     <!-- Readme Modal -->
     <div id="readmeModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
-        <div class="modal-overlay absolute inset-0" onclick="UI.closeModal('readmeModal')"></div>
-        <div class="bg-white w-full sm:w-[800px] h-[85vh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-0 relative z-10 transform transition-transform translate-y-full" id="readmeModalContent">
-            <div class="p-4 sm:p-6 pb-4 border-b border-gray-100 shrink-0">
+        <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
+        <div class="bg-white w-full sm:w-[800px] h-[90vh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-0 relative z-10 transform transition-transform translate-y-full" id="readmeModalContent">
+            <div class="p-4 sm:p-6 pb-4 border-b border-gray-100 shrink-0 bg-white rounded-t-3xl sm:rounded-3xl pt-[max(env(safe-area-inset-top),16px)]">
                 <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 sm:hidden"></div>
                 <div class="flex justify-between items-center">
                     <h2 class="text-xl font-bold truncate pr-4 text-gray-800" id="readmeTitle"></h2>
-                    <button onclick="UI.closeModal('readmeModal')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition shrink-0">
+                    <button onclick="history.back()" class="touch-target rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition shrink-0 ripple-target">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
             </div>
-            <div class="p-4 sm:p-6 overflow-y-auto grow bg-gray-50/50">
+            <div class="p-4 sm:p-6 overflow-y-auto grow bg-gray-50/50 pb-safe relative">
                 <div id="readmeLoading" class="hidden flex flex-col items-center justify-center py-20 text-blue-500">
                     <div class="loader mb-4"></div>
-                    <p class="text-sm font-medium">Readmeを取得中...</p>
+                    <p class="text-sm font-medium" id="readmeLoadingText">Readmeを取得中...</p>
                 </div>
                 <div id="readmeError" class="hidden flex flex-col items-center justify-center py-20 text-red-400">
-                    <i class="fa-solid fa-circle-exclamation text-5xl mb-4"></i>
-                    <p id="readmeErrorMessage" class="text-sm font-medium">Readmeが見つかりませんでした。</p>
+                    <i class="fa-solid fa-circle-exclamation text-5xl mb-4 text-gray-300"></i>
+                    <p id="readmeErrorMessage" class="text-sm font-medium text-gray-600 mb-4">Readmeが見つかりませんでした。</p>
+                    <button id="aiGenerateBtn" onclick="App.generateReadmeAI()" class="hidden px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition shadow-lg ripple-target min-h-[48px] flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> AIで自動生成する
+                    </button>
                 </div>
-                <div id="readmeBody" class="prose prose-sm sm:prose-base prose-blue max-w-none">
-                    <!-- Markdown content will be injected here -->
-                </div>
+                <div id="readmeBody" class="prose prose-sm sm:prose-base prose-blue max-w-none"></div>
             </div>
         </div>
     </div>
 
-    <!-- Toast Container -->
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="modal-overlay absolute inset-0" onclick="history.back()"></div>
+        <div class="bg-white w-full sm:w-[500px] max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl p-0 relative z-10 transform transition-transform translate-y-full" id="privacyModalContent">
+            <div class="p-6 border-b border-gray-100 shrink-0">
+                <h2 class="text-lg font-bold">プライバシーポリシー</h2>
+            </div>
+            <div class="p-6 overflow-y-auto grow text-sm text-gray-600 space-y-4 prose pb-safe">
+                <p>本アプリ（MyPages Hub）は、ユーザーのデバイスローカル（IndexedDB）にデータを保存します。外部サーバーへのデータ無断送信は行いません。</p>
+                <p><strong>API通信について:</strong><br>入力されたGitHub PATおよびAIプロンプト/APIキーは、ユーザーのブラウザから直接公式のAPIエンドポイント（GitHub API, Google Gemini API等）へ送信されます。開発者がこれらの情報を収集することはありません。</p>
+                <p>本アプリは「Minimum Functionality」を順守し、単なるWebサイトのミラーリングではなく、ローカルデータベースやバックグラウンド同期、AIによる機能拡張を提供するユーティリティツールです。</p>
+            </div>
+            <div class="p-4 border-t border-gray-100">
+                <button onclick="history.back()" class="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition ripple-target min-h-[48px]">同意して閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
     <div id="toastContainer" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-[90%] sm:w-auto items-center"></div>
 
     <script>
-        // ==========================================
-        // 1. PWA Manifest Injection
-        // ==========================================
+        // --- 1. Manifest & Basic Setup ---
         const manifest = {
-            name: "My GitHub Pages Hub",
-            short_name: "MyPages",
-            start_url: ".",
-            display: "standalone",
-            background_color: "#f3f4f6",
-            theme_color: "#2563eb",
-            icons: [{
-                src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDBDNS4zNyAwIDAgNS4zNyAwIDEyYzAgNS4zMSAzLjQzNSA5LjgyNiA4LjIwNiAxMS4zODcuNi4xMTEuODE4LS4yNi44MTgtLjU3OHYtMi4wNDRjLTMuMzM4LjcyNC00LjA0Mi0xLjYxLTQuMDQyLTEuNjFDNC40MjIgMTguMDcgMy42MzMgMTcuNyAzLjYzMyAxNy43Yy0xLjA4Ny0uNzQ0LjA4NC0uNzI5LjA4NC0uNzI5IDEuMjA1LjA4NCAxLjgzOCAxLjIzNiAxLjgzOCAxLjIzNiAxLjA3IDEuODM1IDIuODA5IDEuMzA1IDMuNDk1Ljk5OC4xMDgtLjc3Ni40MTctMS4zMDUuNzYtMS42MDUtMi42NjUtLjMwMy01LjQ2Ni0xLjMzMi01LjQ2Ni01LjkzIDAtMS4zMS40NjUtMi4zOCAxLjIzNS0zLjIyMi0uMTIzLS4zMDMtLjUzNS0xLjUyMy4xMTctMy4xNzYgMCAwIDEuMDA4LS4zMjIgMy4zMDEgMS4yMy45NTctLjI2NiAxLjk4My0uMzk4IDMuMDAzLS40MDQgMS4wMi4wMDYgMi4wNDYuMTM4IDMuMDAzLjQwNCAyLjI5MS0xLjU1MiAzLjI5Ny0xLjIzIDMyLjk3LTEuMjMuNjUzIDEuNjUzLjI0MiAyLjg3NC4xMTggMy4xNzYuNzcuODQgMS4yMzUgMS45MTEgMS4yMzUgMy4yMjIgMCA0LjYxLTIuODA1IDUuNjI1LTUuNDc1IDUuOTIuNDIuMzYuODEgMS4wOTYuODEgMi4yMmwwIDMuMjJjMCAuMzIuMjE2LjY5NC44MjUuNTc2QzIwLjU2NSAyMS44MjYgMjQgMTcuMzEgMjQgMTJjMC02LjYzLLTUuMzctMTItMTItMTJ6IiBmaWxsPSIjMjU2M2ViIi8+PC9zdmc+",
-                sizes: "192x192",
-                type: "image/svg+xml"
-            }]
+            name: "MyPages Hub", short_name: "MyPages", start_url: ".", display: "standalone",
+            background_color: "#f3f4f6", theme_color: "#2563eb",
+            icons: [{ src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDBDNS4zNyAwIDAgNS4zNyAwIDEyYzAgNS4zMSAzLjQzNSA5LjgyNiA4LjIwNiAxMS4zODcuNi4xMTEuODE4LS4yNi44MTgtLjU3OHYtMi4wNDRjLTMuMzM4LjcyNC00LjA0Mi0xLjYxLTQuMDQyLTEuNjFDNC40MjIgMTguMDcgMy42MzMgMTcuNyAzLjYzMyAxNy43Yy0xLjA4Ny0uNzQ0LjA4NC0uNzI5LjA4NC0uNzI5IDEuMjA1LjA4NCAxLjgzOCAxLjIzNiAxLjgzOCAxLjIzNiAxLjA3IDEuODM1IDIuODA5IDEuMzA1IDMuNDk1Ljk5OC4xMDgtLjc3Ni40MTctMS4zMDUuNzYtMS42MDUtMi42NjUtLjMwMy01LjQ2Ni0xLjMzMi01LjQ2Ni01LjkzIDAtMS4zMS40NjUtMi4zOCAxLjIzNS0zLjIyMi0uMTIzLS4zMDMtLjUzNS0xLjUyMy4xMTctMy4xNzYgMCAwIDEuMDA4LS4zMjIgMy4zMDEgMS4yMy45NTctLjI2NiAxLjk4My0uMzk4IDMuMDAzLS40MDQgMS4wMi4wMDYgMi4wNDYuMTM4IDMuMDAzLjQwNCAyLjI5MS0xLjU1MiAzLjI5Ny0xLjIzIDMyLjk3LTEuMjMuNjUzIDEuNjUzLjI0MiAyLjg3NC4xMTggMy4xNzYuNzcuODQgMS4yMzUgMS45MTEgMS4yMzUgMy4yMjIgMCA0LjYxLTIuODA1IDUuNjI1LTUuNDc1IDUuOTIuNDIuMzYuODEgMS4wOTYuODEgMi4yMmwwIDMuMjJjMCAuMzIuMjE2LjY5NC44MjUuNTc2QzIwLjU2NSAyMS44MjYgMjQgMTcuMzEgMjQgMTJjMC02LjYzLLTUuMzctMTItMTItMTJ6IiBmaWxsPSIjMjU2M2ViIi8+PC9zdmc+", sizes: "192x192", type: "image/svg+xml" }]
         };
         document.getElementById('manifest').href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
 
-        // ==========================================
-        // 2. Database Wrapper (IndexedDB)
-        // ==========================================
-        class DB {
-            constructor() {
-                this.dbName = 'GitHubPagesHubDB';
-                this.version = 1;
-                this.db = null;
-            }
+        // Optional Service Worker registration for PWA offline capabilities
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Production environment should have sw.js. This avoids errors while providing offline PWA capability if deployed.
+                navigator.serviceWorker.register('./sw.js').catch(()=>console.log("SW bypass for local dev"));
+            });
+        }
 
+        // --- 2. Database ---
+        class DB {
+            constructor() { this.dbName = 'MyPagesDB'; this.version = 2; this.db = null; }
             async init() {
                 return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, this.version);
-                    request.onupgradeneeded = (e) => {
+                    const req = indexedDB.open(this.dbName, this.version);
+                    req.onupgradeneeded = (e) => {
                         const db = e.target.result;
-                        if (!db.objectStoreNames.contains('pages')) {
-                            db.createObjectStore('pages', { keyPath: 'id' });
-                        }
-                        if (!db.objectStoreNames.contains('backups')) {
-                            db.createObjectStore('backups', { keyPath: 'timestamp' });
-                        }
+                        if (!db.objectStoreNames.contains('pages')) db.createObjectStore('pages', { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains('backups')) db.createObjectStore('backups', { keyPath: 'timestamp' });
                     };
-                    request.onsuccess = (e) => {
-                        this.db = e.target.result;
-                        resolve();
-                    };
-                    request.onerror = (e) => reject(e.target.error);
+                    req.onsuccess = e => { this.db = e.target.result; resolve(); };
+                    req.onerror = e => reject(e.target.error);
                 });
             }
-
-            async get(storeName, key) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(storeName, 'readonly');
-                    const req = tx.objectStore(storeName).get(key);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            async getAll(storeName) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(storeName, 'readonly');
-                    const req = tx.objectStore(storeName).getAll();
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            async put(storeName, data) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(storeName, 'readwrite');
-                    const req = tx.objectStore(storeName).put(data);
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            async delete(storeName, key) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(storeName, 'readwrite');
-                    const req = tx.objectStore(storeName).delete(key);
-                    req.onsuccess = () => resolve();
-                    req.onerror = () => reject(req.error);
-                });
-            }
-
-            async clear(storeName) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(storeName, 'readwrite');
-                    const req = tx.objectStore(storeName).clear();
-                    req.onsuccess = () => resolve();
-                    req.onerror = () => reject(req.error);
-                });
-            }
+            async get(s, k) { return new Promise(r => { const req = this.db.transaction(s, 'readonly').objectStore(s).get(k); req.onsuccess = ()=>r(req.result); }); }
+            async getAll(s) { return new Promise(r => { const req = this.db.transaction(s, 'readonly').objectStore(s).getAll(); req.onsuccess = ()=>r(req.result); }); }
+            async put(s, d) { return new Promise(r => { const req = this.db.transaction(s, 'readwrite').objectStore(s).put(d); req.onsuccess = ()=>r(req.result); }); }
+            async delete(s, k) { return new Promise(r => { const req = this.db.transaction(s, 'readwrite').objectStore(s).delete(k); req.onsuccess = ()=>r(); }); }
+            async clear(s) { return new Promise(r => { const req = this.db.transaction(s, 'readwrite').objectStore(s).clear(); req.onsuccess = ()=>r(); }); }
         }
         const db = new DB();
 
-        // ==========================================
-        // 3. Web Worker (Async Background Tasks & Cache)
-        // ==========================================
+        // --- 3. Ripple Effect ---
+        function attachRipple() {
+            document.querySelectorAll('.ripple-target:not(.ripple-attached)').forEach(btn => {
+                btn.classList.add('ripple-attached');
+                btn.addEventListener('pointerdown', function(e) {
+                    const rect = this.getBoundingClientRect();
+                    const circle = document.createElement('span');
+                    const diameter = Math.max(rect.width, rect.height);
+                    const radius = diameter / 2;
+                    circle.style.width = circle.style.height = `${diameter}px`;
+                    circle.style.left = `${e.clientX - rect.left - radius}px`;
+                    circle.style.top = `${e.clientY - rect.top - radius}px`;
+                    circle.classList.add('ripple');
+                    const existing = this.querySelector('.ripple');
+                    if(existing) existing.remove();
+                    this.appendChild(circle);
+                    setTimeout(() => circle.remove(), 600);
+                });
+            });
+        }
+
+        // --- 4. Web Worker ---
         const workerCode = `
             self.onmessage = async function(e) {
                 const { type, payload } = e.data;
-                console.log('[Worker] Received message:', type, 'payload:', payload);
-                
-                // --- 個別メタデータ取得 ---
                 if (type === 'FETCH_METADATA') {
                     const { id, url, pat, lastFetch } = payload;
                     try {
-                        // バグ修正: URL末尾のスラッシュを除去し、リポジトリ名にハイフン・ドットが含まれるケースに対応
                         const cleanUrl = url.replace(/\\/$/, "");
                         const match = cleanUrl.match(/https?:\\/\\/([\\w\\-]+)\\.github\\.io\\/?([\\w\\-\\.]+)?/i);
-                        
-                        console.log('[Worker] FETCH_METADATA Parsed URL match:', match);
-                        
                         if (match) {
-                            const user = match[1];
-                            const repo = match[2];
+                            const user = match[1], repo = match[2];
                             const apiUrl = repo ? \`https://api.github.com/repos/\${user}/\${repo}\` : \`https://api.github.com/users/\${user}\`;
-                            
-                            console.log('[Worker] Requesting GitHub API:', apiUrl);
-                            
-                            const headers = {};
-                            if (pat) headers['Authorization'] = \`Bearer \${pat}\`;
+                            const headers = {}; if (pat) headers['Authorization'] = \`Bearer \${pat}\`;
                             if (lastFetch) headers['If-Modified-Since'] = new Date(lastFetch).toUTCString();
                             
                             const res = await fetch(apiUrl, { headers });
-                            console.log('[Worker] API Response:', res.status, res.statusText);
-                            
-                            if (res.status === 304) {
-                                console.log('[Worker] Data not modified (304) for ID:', id);
-                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'not_modified' } });
-                                return;
-                            }
-                            
+                            if (res.status === 304) return self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'not_modified' } });
                             if (res.ok) {
                                 const data = await res.json();
-                                const title = repo ? data.name : (data.name || \`\${user}'s Page\`);
-                                const description = data.description || "";
-                                const lastUpdated = data.updated_at || new Date().toISOString();
-                                const githubRepoUrl = data.html_url || \`https://github.com/\${user}/\${repo || user+'.github.io'}\`;
-                                
-                                console.log('[Worker] Sending SUCCESS for ID:', id, 'Title:', title);
-                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, title, description, lastUpdated, githubRepoUrl, status: 'success' } });
-                                return;
-                            } else {
-                                const errData = await res.text();
-                                console.error('[Worker] API Error Data:', errData);
-                                self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: \`API Error \${res.status}\` } });
-                                return;
+                                return self.postMessage({ type: 'METADATA_RESULT', payload: { 
+                                    id, title: repo ? data.name : (data.name || \`\${user}'s Page\`), 
+                                    description: data.description || "", lastUpdated: data.updated_at || new Date().toISOString(), 
+                                    githubRepoUrl: data.html_url, status: 'success' 
+                                }});
                             }
                         }
-                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: 'Invalid URL Format' } });
-                    } catch (err) {
-                        console.error('[Worker] Exception in FETCH_METADATA:', err);
-                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: err.message } });
-                    }
-                }
-                
-                // --- ユーザーリポジトリからのPages自動検出 ---
-                else if (type === 'SYNC_USER_REPOS') {
-                    const { pat } = payload;
+                        self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error' } });
+                    } catch (err) { self.postMessage({ type: 'METADATA_RESULT', payload: { id, status: 'error', error: err.message } }); }
+                } else if (type === 'SYNC_USER_REPOS') {
                     try {
-                        let page = 1;
-                        let allRepos = [];
-                        let hasNext = true;
-                        
+                        let page = 1, allRepos = [], hasNext = true;
                         while(hasNext) {
-                            const res = await fetch(\`https://api.github.com/user/repos?per_page=100&page=\${page}&affiliation=owner\`, {
-                                headers: { 
-                                    'Authorization': \`Bearer \${pat}\`, 
-                                    'Accept': 'application/vnd.github.v3+json' 
-                                }
-                            });
-                            
-                            console.log('[Worker] SYNC_USER_REPOS Page', page, 'Status:', res.status);
-                            if (!res.ok) throw new Error('Failed to fetch repos. PAT may be invalid.');
-                            
+                            const res = await fetch(\`https://api.github.com/user/repos?per_page=100&page=\${page}&affiliation=owner\`, { headers: { 'Authorization': \`Bearer \${payload.pat}\` }});
+                            if (!res.ok) throw new Error('API Error');
                             const repos = await res.json();
-                            if (repos.length === 0) {
-                                hasNext = false;
-                            } else {
-                                allRepos = allRepos.concat(repos);
-                                page++;
-                            }
+                            if (repos.length === 0) hasNext = false; else { allRepos = allRepos.concat(repos); page++; }
                         }
-                        
-                        const pagesRepos = allRepos.filter(repo => repo.has_pages);
-                        const discoveredPages = pagesRepos.map(repo => {
-                            const url = \`https://\${repo.owner.login}.github.io/\${repo.name}/\`;
-                            return {
-                                url,
-                                title: repo.name,
-                                description: repo.description || "",
-                                githubUpdatedAt: repo.updated_at,
-                                githubRepoUrl: repo.html_url
-                            };
-                        });
-                        
-                        console.log('[Worker] SYNC_USER_REPOS Complete. Found pages:', discoveredPages.length);
-                        self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'success', pages: discoveredPages } });
-                    } catch (err) {
-                        console.error('[Worker] Exception in SYNC_USER_REPOS:', err);
-                        self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'error', error: err.message } });
-                    }
-                }
-                
-                // --- Readme取得 ---
-                else if (type === 'FETCH_README') {
-                    const { id, owner, repo, pat } = payload;
+                        const pages = allRepos.filter(r => r.has_pages).map(r => ({
+                            url: \`https://\${r.owner.login}.github.io/\${r.name}/\`, title: r.name, description: r.description || "", githubUpdatedAt: r.updated_at, githubRepoUrl: r.html_url
+                        }));
+                        self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'success', pages } });
+                    } catch (err) { self.postMessage({ type: 'SYNC_USER_REPOS_RESULT', payload: { status: 'error' } }); }
+                } else if (type === 'FETCH_README') {
                     try {
-                        const apiUrl = \`https://api.github.com/repos/\${owner}/\${repo}/readme\`;
-                        console.log('[Worker] Fetching Readme from:', apiUrl);
-                        
                         const headers = { 'Accept': 'application/vnd.github.v3.raw' };
-                        if (pat) headers['Authorization'] = \`Bearer \${pat}\`;
-                        
-                        const res = await fetch(apiUrl, { headers });
-                        console.log('[Worker] Readme API Response:', res.status);
-                        
-                        if (res.ok) {
-                            const readmeContent = await res.text();
-                            self.postMessage({ type: 'README_RESULT', payload: { id, status: 'success', readmeContent } });
-                        } else if (res.status === 404) {
-                            self.postMessage({ type: 'README_RESULT', payload: { id, status: 'error', error: 'Readmeが存在しません' } });
-                        } else {
-                            self.postMessage({ type: 'README_RESULT', payload: { id, status: 'error', error: 'Readmeの取得に失敗しました (' + res.status + ')' } });
-                        }
-                    } catch (err) {
-                        console.error('[Worker] Exception in FETCH_README:', err);
-                        self.postMessage({ type: 'README_RESULT', payload: { id, status: 'error', error: err.message } });
-                    }
+                        if (payload.pat) headers['Authorization'] = \`Bearer \${payload.pat}\`;
+                        const res = await fetch(\`https://api.github.com/repos/\${payload.owner}/\${payload.repo}/readme\`, { headers });
+                        if (res.ok) self.postMessage({ type: 'README_RESULT', payload: { id: payload.id, status: 'success', readmeContent: await res.text() } });
+                        else self.postMessage({ type: 'README_RESULT', payload: { id: payload.id, status: 'error' } });
+                    } catch (err) { self.postMessage({ type: 'README_RESULT', payload: { id: payload.id, status: 'error' } }); }
                 }
             };
         `;
-        const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
-        const worker = new Worker(URL.createObjectURL(workerBlob));
+        const worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
 
-        // ==========================================
-        // 4. Wake Lock API
-        // ==========================================
-        let wakeLock = null;
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) { console.warn('Wake Lock error:', err); }
-        }
-        function releaseWakeLock() {
-            if (wakeLock !== null) {
-                wakeLock.release().then(() => wakeLock = null);
-            }
-        }
-
-        // ==========================================
-        // 5. App Logic
-        // ==========================================
+        // --- 5. UI & History API ---
         const UI = {
-            showToast(message, type = 'info') {
-                const container = document.getElementById('toastContainer');
-                const toast = document.createElement('div');
-                const colors = {
-                    success: 'bg-gray-800 text-white',
-                    error: 'bg-red-600 text-white',
-                    info: 'bg-blue-600 text-white'
-                };
-                toast.className = `px-4 py-2 rounded-full shadow-lg text-sm font-medium toast ${colors[type]} flex items-center gap-2 max-w-full text-center`;
-                toast.innerHTML = type === 'success' ? `<i class="fa-solid fa-check-circle"></i> <span>${message}</span>` : `<span>${message}</span>`;
-                container.appendChild(toast);
-                setTimeout(() => toast.remove(), 4000);
+            activeModals: [],
+            showToast(msg, type = 'info') {
+                const c = document.getElementById('toastContainer');
+                const t = document.createElement('div');
+                const colors = { success: 'bg-gray-800 text-white', error: 'bg-red-600 text-white', info: 'bg-blue-600 text-white' };
+                t.className = `px-4 py-3 rounded-xl shadow-xl text-sm font-bold toast ${colors[type]} flex items-center gap-2 max-w-full`;
+                t.innerHTML = type === 'success' ? `<i class="fa-solid fa-check-circle"></i> <span>${msg}</span>` : `<span>${msg}</span>`;
+                c.appendChild(t); setTimeout(() => t.remove(), 4000);
             },
             openModal(id) {
-                const modal = document.getElementById(id);
-                const content = document.getElementById(id + 'Content');
-                modal.classList.remove('hidden');
-                void modal.offsetWidth;
-                content.classList.remove('translate-y-full');
+                if(this.activeModals.includes(id)) return;
+                document.getElementById(id).classList.remove('hidden');
+                void document.getElementById(id).offsetWidth;
+                document.getElementById(id+'Content').classList.remove('translate-y-full');
+                this.activeModals.push(id);
+                history.pushState({ modal: id }, '');
             },
             closeModal(id) {
-                const modal = document.getElementById(id);
-                const content = document.getElementById(id + 'Content');
-                content.classList.add('translate-y-full');
-                setTimeout(() => modal.classList.add('hidden'), 300);
+                const el = document.getElementById(id);
+                if(el && !el.classList.contains('hidden')) {
+                    document.getElementById(id+'Content').classList.add('translate-y-full');
+                    setTimeout(() => el.classList.add('hidden'), 300);
+                    this.activeModals = this.activeModals.filter(m => m !== id);
+                }
             },
             openAddModal(pageId = null) {
-                const form = document.getElementById('pageForm');
-                const urlInput = document.getElementById('pageUrl');
+                const f = document.getElementById('pageForm'); f.reset();
                 document.getElementById('urlError').classList.add('hidden');
-                
                 if (pageId) {
                     document.getElementById('modalTitle').innerText = 'ページの編集';
-                    const page = App.pages.find(p => p.id === pageId);
-                    if(page) {
-                        document.getElementById('pageId').value = page.id;
-                        document.getElementById('pageUrl').value = page.url;
-                        document.getElementById('pageTitle').value = page.title || '';
-                        document.getElementById('pageMemo').value = page.memo || '';
+                    const p = App.pages.find(x => x.id === pageId);
+                    if(p) {
+                        document.getElementById('pageId').value = p.id; document.getElementById('pageUrl').value = p.url;
+                        document.getElementById('pageTitle').value = p.title || ''; document.getElementById('pageMemo').value = p.memo || '';
+                        document.getElementById('pageTags').value = (p.tags||[]).join(', ');
                     }
                 } else {
                     document.getElementById('modalTitle').innerText = 'ページの追加';
-                    form.reset();
                     document.getElementById('pageId').value = '';
-                    const draftUrl = localStorage.getItem('draftUrl');
-                    if(draftUrl) urlInput.value = draftUrl;
-                    document.getElementById('pageTitle').value = localStorage.getItem('draftTitle') || '';
-                    document.getElementById('pageMemo').value = localStorage.getItem('draftMemo') || '';
+                    if(localStorage.getItem('draftUrl')) document.getElementById('pageUrl').value = localStorage.getItem('draftUrl');
                 }
                 this.openModal('addModal');
             },
             openSettingsModal() { this.openModal('settingsModal'); },
-            openHistoryModal() { 
-                App.renderBackups();
-                this.openModal('historyModal'); 
-            },
-            openReadmeModal(title) {
+            openHistoryModal() { App.renderBackups(); this.openModal('historyModal'); },
+            openPrivacyModal() { this.openModal('privacyModal'); },
+            openReadmeModal(title, id) {
                 document.getElementById('readmeTitle').innerHTML = `<i class="fa-solid fa-book-open mr-2 text-blue-500"></i>${title}`;
                 document.getElementById('readmeLoading').classList.remove('hidden');
                 document.getElementById('readmeError').classList.add('hidden');
                 document.getElementById('readmeBody').innerHTML = '';
+                App.currentReadmeTarget = id;
                 this.openModal('readmeModal');
-            },
-            setReadmeContent(html) {
-                document.getElementById('readmeLoading').classList.add('hidden');
-                document.getElementById('readmeBody').innerHTML = html;
-            },
-            setReadmeError(msg) {
-                document.getElementById('readmeLoading').classList.add('hidden');
-                document.getElementById('readmeError').classList.remove('hidden');
-                document.getElementById('readmeErrorMessage').innerText = msg;
             }
         };
 
+        window.addEventListener('popstate', (e) => {
+            if (UI.activeModals.length > 0) {
+                const id = UI.activeModals.pop();
+                UI.closeModal(id);
+            }
+        });
+
+        // --- 6. App Main Logic ---
         const App = {
-            pages: [],
-            filterMode: 'all',
-            searchQuery: '',
-            syncProgress: { total: 0, current: 0, success: 0, skipped: 0, error: 0 },
-            syncCancelRequested: false,
+            pages: [], filterMode: 'all', activeTag: null, searchQuery: '', syncCancelRequested: false, currentReadmeTarget: null,
 
             async init() {
-                try {
-                    await db.init();
-                    this.loadSettings();
-                    await this.loadPages();
-                    this.setupListeners();
-                    this.setupWorker();
-                    
-                    if(localStorage.getItem('syncInProgress') === 'true') {
-                        localStorage.removeItem('syncInProgress');
-                        this.pages.forEach(p => p.isSyncing = false);
-                        this.renderPages();
+                await db.init();
+                this.loadSettings();
+                this.pages = await db.getAll('pages');
+                this.pages.forEach(p => p.isSyncing = false);
+                this.pages.sort((a, b) => b.updatedAt - a.updatedAt);
+                this.setupWorker();
+                this.renderPages();
+                attachRipple();
+
+                // Background Auto Sync on wake up
+                document.addEventListener('visibilitychange', () => {
+                    if(document.visibilityState === 'visible') {
+                        const lastSync = localStorage.getItem('lastAutoSync');
+                        if(!lastSync || Date.now() - parseInt(lastSync) > 3600000) { // 1 hour
+                            console.log('Auto Sync Triggered');
+                            this.syncAll(true);
+                            localStorage.setItem('lastAutoSync', Date.now().toString());
+                        }
                     }
-                } catch (e) {
-                    console.error("Initialization failed:", e);
-                    UI.showToast("データベースの初期化に失敗しました", "error");
-                }
+                });
             },
 
             loadSettings() {
-                const pat = localStorage.getItem('githubPat');
-                if (pat) {
-                    document.getElementById('githubPat').value = pat;
+                ['githubPat', 'aiApiKey', 'aiPrompt'].forEach(k => {
+                    if(localStorage.getItem(k)) document.getElementById(k).value = localStorage.getItem(k);
+                });
+                if(!document.getElementById('aiPrompt').value) {
+                    document.getElementById('aiPrompt').value = "以下のプロジェクト情報を基に、綺麗でモダンなMarkdown形式のReadmeを作成してください。機能概要、技術スタック、特徴を見出しをつけて簡潔にまとめてください。";
                 }
             },
-
-            saveGithubPat() {
-                const pat = document.getElementById('githubPat').value.trim();
-                if (pat) {
-                    localStorage.setItem('githubPat', pat);
-                    UI.showToast("GitHub PATを保存しました", "success");
-                } else {
-                    localStorage.removeItem('githubPat');
-                    UI.showToast("GitHub PATを削除しました", "info");
-                }
+            saveSettings() {
+                ['githubPat', 'aiApiKey', 'aiPrompt'].forEach(k => {
+                    const v = document.getElementById(k).value.trim();
+                    if(v) localStorage.setItem(k, v); else localStorage.removeItem(k);
+                });
+                UI.showToast("設定を保存しました", "success");
             },
             
-            getGithubPat() {
-                return localStorage.getItem('githubPat') || '';
-            },
-
-            async loadPages() {
-                this.pages = await db.getAll('pages');
-                
-                let needUpdate = false;
-                this.pages.forEach(p => {
-                    if (p.isSyncing) {
-                        p.isSyncing = false;
-                        needUpdate = true;
-                    }
-                });
-                if (needUpdate) {
-                    for (const p of this.pages) {
-                        await db.put('pages', p);
-                    }
-                }
-
-                this.pages.sort((a, b) => b.updatedAt - a.updatedAt);
-                this.renderPages();
-            },
-
-            setupListeners() {
-                document.getElementById('searchInput').addEventListener('input', (e) => {
-                    this.searchQuery = e.target.value.toLowerCase();
-                    this.renderList();
-                });
-            },
-
             setupWorker() {
                 worker.onmessage = async (e) => {
                     const { type, payload } = e.data;
-                    console.log('[Main] Received from Worker:', type, payload);
-                    
                     if (type === 'METADATA_RESULT') {
-                        const pageIndex = this.pages.findIndex(p => p.id === payload.id);
-                        if (pageIndex > -1) {
-                            const p = this.pages[pageIndex];
-                            
-                            if (this.syncCancelRequested) {
-                                p.isSyncing = false;
-                                this.updateCardDOM(p);
-                                this.checkSyncCompletion();
-                                return;
-                            }
-
+                        const p = this.pages.find(x => x.id === payload.id);
+                        if (p && !this.syncCancelRequested) {
                             if (payload.status === 'success') {
                                 if(!p.hasCustomTitle && payload.title) p.title = payload.title;
                                 p.description = payload.description !== undefined ? payload.description : p.description;
-                                p.githubUpdatedAt = payload.lastUpdated;
-                                p.lastFetch = new Date().toISOString();
-                                if(payload.githubRepoUrl) p.githubRepoUrl = payload.githubRepoUrl;
-                                this.syncProgress.success++;
-                                console.log('[Main] METADATA updated successfully:', p.title);
-                            } else if (payload.status === 'not_modified') {
-                                p.lastFetch = new Date().toISOString();
-                                this.syncProgress.skipped++;
-                                console.log('[Main] METADATA not modified for:', p.title);
-                            } else {
-                                this.syncProgress.error++;
-                                console.warn('[Main] METADATA error:', payload.error);
+                                p.githubUpdatedAt = payload.lastUpdated; p.githubRepoUrl = payload.githubRepoUrl;
                             }
-                            
-                            p.isSyncing = false;
-                            await db.put('pages', p);
-                            this.updateCardDOM(p);
-
-                            if (!document.getElementById('sync-status').classList.contains('hidden')) {
-                                this.syncProgress.current++;
-                                document.getElementById('sync-progress-text').innerText = `個別更新中... (${this.syncProgress.current}/${this.syncProgress.total})`;
-                            }
+                            p.lastFetch = new Date().toISOString(); p.isSyncing = false;
+                            await db.put('pages', p); this.renderList();
                         }
                         this.checkSyncCompletion();
-                    }
-                    
-                    else if (type === 'SYNC_USER_REPOS_RESULT') {
-                        if (this.syncCancelRequested) {
-                            this.checkSyncCompletion();
-                            return;
-                        }
-                        
-                        if (payload.status === 'success') {
-                            const now = Date.now();
-                            let addedCount = 0;
-                            let updatedCount = 0;
-                            
-                            for (const discovered of payload.pages) {
-                                const cleanDiscUrl = discovered.url.toLowerCase().replace(/\/$/, "");
-                                const existingIndex = this.pages.findIndex(p => p.url.toLowerCase().replace(/\/$/, "") === cleanDiscUrl);
-                                
-                                if (existingIndex > -1) {
-                                    const p = this.pages[existingIndex];
-                                    if (!p.hasCustomTitle) p.title = discovered.title;
-                                    p.description = discovered.description || p.description;
-                                    p.githubUpdatedAt = discovered.githubUpdatedAt;
-                                    p.lastFetch = new Date().toISOString();
-                                    if(discovered.githubRepoUrl) p.githubRepoUrl = discovered.githubRepoUrl;
-                                    await db.put('pages', p);
-                                    this.updateCardDOM(p);
-                                    updatedCount++;
+                    } else if (type === 'SYNC_USER_REPOS_RESULT') {
+                        if (!this.syncCancelRequested && payload.status === 'success') {
+                            for (const disc of payload.pages) {
+                                const exist = this.pages.find(p => p.url.toLowerCase().replace(/\/$/, "") === disc.url.toLowerCase().replace(/\/$/, ""));
+                                if (exist) {
+                                    if(!exist.hasCustomTitle) exist.title = disc.title;
+                                    exist.description = disc.description || exist.description;
+                                    exist.githubUpdatedAt = disc.githubUpdatedAt; exist.githubRepoUrl = disc.githubRepoUrl; exist.lastFetch = new Date().toISOString();
+                                    await db.put('pages', exist);
                                 } else {
-                                    const newPage = {
-                                        id: 'page_' + now + '_' + Math.random().toString(36).substr(2, 9),
-                                        url: discovered.url,
-                                        title: discovered.title,
-                                        hasCustomTitle: false,
-                                        description: discovered.description || '',
-                                        githubRepoUrl: discovered.githubRepoUrl,
-                                        memo: '',
-                                        isFavorite: false,
-                                        createdAt: now,
-                                        updatedAt: now,
-                                        isSyncing: false,
-                                        lastFetch: new Date().toISOString(),
-                                        githubUpdatedAt: discovered.githubUpdatedAt
-                                    };
-                                    this.pages.unshift(newPage);
-                                    await db.put('pages', newPage);
-                                    addedCount++;
+                                    const now = Date.now();
+                                    const newP = { id: 'p_'+now+'_'+Math.random().toString(36).substr(2,5), url: disc.url, title: disc.title, hasCustomTitle: false, description: disc.description||'', tags:[], memo: '', isFavorite: false, createdAt: now, updatedAt: now, isSyncing: false, lastFetch: new Date().toISOString(), githubUpdatedAt: disc.githubUpdatedAt, githubRepoUrl: disc.githubRepoUrl };
+                                    this.pages.unshift(newP); await db.put('pages', newP);
                                 }
                             }
-                            
-                            if (addedCount > 0 || updatedCount > 0) this.renderList();
-                            if (addedCount > 0 || updatedCount > 0) {
-                                UI.showToast(`リポジトリから ${addedCount}件追加、${updatedCount}件更新`, "success");
-                            }
-                        } else {
-                            UI.showToast("リポジトリ情報の取得に失敗しました", "error");
+                            this.renderList();
                         }
-                        
                         this.syncIndividualPages();
-                    }
-                    
-                    // Readme取得結果の処理
-                    else if (type === 'README_RESULT') {
+                    } else if (type === 'README_RESULT') {
                         if (payload.status === 'success') {
-                            const pageIndex = this.pages.findIndex(p => p.id === payload.id);
-                            if (pageIndex > -1) {
-                                const p = this.pages[pageIndex];
-                                p.readmeContent = payload.readmeContent;
-                                p.readmeLastFetch = new Date().toISOString();
-                                db.put('pages', p).catch(console.error);
-                                
-                                const modal = document.getElementById('readmeModal');
-                                if (!modal.classList.contains('hidden')) {
-                                    const html = DOMPurify.sanitize(marked.parse(p.readmeContent));
-                                    UI.setReadmeContent(html);
-                                }
-                            }
+                            const p = this.pages.find(x => x.id === payload.id);
+                            if(p) { p.readmeContent = payload.readmeContent; p.readmeLastFetch = new Date().toISOString(); db.put('pages', p); }
+                            document.getElementById('readmeLoading').classList.add('hidden');
+                            document.getElementById('readmeBody').innerHTML = DOMPurify.sanitize(marked.parse(payload.readmeContent));
                         } else {
-                            const modal = document.getElementById('readmeModal');
-                            if (!modal.classList.contains('hidden')) {
-                                UI.setReadmeError(payload.error || "Readmeが見つかりませんでした");
-                            }
+                            document.getElementById('readmeLoading').classList.add('hidden');
+                            document.getElementById('readmeError').classList.remove('hidden');
+                            // API KeyがあればAI生成ボタンを表示
+                            if(localStorage.getItem('aiApiKey')) document.getElementById('aiGenerateBtn').classList.remove('hidden');
                         }
                     }
                 };
             },
 
             checkSyncCompletion() {
-                const isAnySyncing = this.pages.some(p => p.isSyncing);
-                if (!isAnySyncing) {
-                    const statusEl = document.getElementById('sync-status');
-                    if (!statusEl.classList.contains('hidden')) {
-                        statusEl.classList.add('hidden');
-                        if (this.syncCancelRequested) {
-                            UI.showToast("同期をキャンセルしました", "error");
-                        } else {
-                            if(this.syncProgress.total > 0) {
-                                UI.showToast(`完了 (成功:${this.syncProgress.success} スキップ:${this.syncProgress.skipped} エラー:${this.syncProgress.error})`, "success");
-                            } else {
-                                UI.showToast("同期完了", "success");
-                            }
-                        }
-                    }
+                if(!this.pages.some(p => p.isSyncing)) {
+                    document.getElementById('sync-status').classList.add('hidden');
                     localStorage.removeItem('syncInProgress');
-                    this.syncCancelRequested = false;
-                    releaseWakeLock();
                     this.createBackup();
                 }
             },
 
-            saveDraft() {
-                if(!document.getElementById('pageId').value) {
-                    localStorage.setItem('draftUrl', document.getElementById('pageUrl').value);
-                    localStorage.setItem('draftTitle', document.getElementById('pageTitle').value);
-                    localStorage.setItem('draftMemo', document.getElementById('pageMemo').value);
-                }
-            },
+            saveDraft() { localStorage.setItem('draftUrl', document.getElementById('pageUrl').value); },
             
-            clearDraft() {
-                localStorage.removeItem('draftUrl');
-                localStorage.removeItem('draftTitle');
-                localStorage.removeItem('draftMemo');
-            },
-
-            validateUrl(url) {
-                return /^https?:\/\/([\w\-]+)\.github\.io/i.test(url);
-            },
-
             async handleSavePage(e) {
                 e.preventDefault();
-                const idInput = document.getElementById('pageId').value;
                 const url = document.getElementById('pageUrl').value.trim();
-                const title = document.getElementById('pageTitle').value.trim();
-                const memo = document.getElementById('pageMemo').value.trim();
-
-                if (!this.validateUrl(url)) {
-                    document.getElementById('urlError').classList.remove('hidden');
-                    return;
-                }
-
-                console.log('[Main] handleSavePage - URL:', url, 'Title:', title);
-
-                const now = Date.now();
-                let page = null;
-
-                if (idInput) {
-                    page = this.pages.find(p => p.id === idInput);
-                    if(page) {
-                        // URLが変更された場合のみキャッシュリセット
-                        if (page.url !== url) {
-                            page.lastFetch = null;
-                            console.log('[Main] URL changed, resetting lastFetch cache');
-                        }
-                        page.url = url;
-                        page.hasCustomTitle = title !== '';
-                        page.title = title || page.title;
-                        page.memo = memo;
-                        page.updatedAt = now;
-                    }
-                } else {
-                    page = {
-                        id: 'page_' + now,
-                        url,
-                        title: title || '取得中...',
-                        hasCustomTitle: title !== '',
-                        description: '',
-                        memo,
-                        isFavorite: false,
-                        createdAt: now,
-                        updatedAt: now,
-                        isSyncing: true,
-                        lastFetch: null
-                    };
-                    this.pages.unshift(page);
-                }
-
-                await db.put('pages', page);
-                await this.createBackup();
+                if (!/^https?:\/\/([\w\-]+)\.github\.io/i.test(url)) return document.getElementById('urlError').classList.remove('hidden');
                 
-                UI.closeModal('addModal');
-                this.clearDraft();
-                this.renderList();
-                UI.showToast(idInput ? "更新しました" : "追加しました", "success");
-
-                // URL変更時または新規追加時、または未取得の場合にメタデータを再取得
-                if(!idInput || !page.lastFetch) {
-                    const pat = this.getGithubPat();
-                    console.log('[Main] Dispatching FETCH_METADATA for newly added/edited page. PAT available:', !!pat);
-                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: page.id, url: page.url, pat: pat, lastFetch: page.lastFetch } });
+                const id = document.getElementById('pageId').value;
+                const title = document.getElementById('pageTitle').value.trim();
+                const tags = document.getElementById('pageTags').value.split(',').map(t=>t.trim()).filter(t=>t);
+                const memo = document.getElementById('pageMemo').value.trim();
+                const now = Date.now();
+                
+                let p = id ? this.pages.find(x => x.id === id) : null;
+                if (p) {
+                    if(p.url !== url) p.lastFetch = null;
+                    p.url = url; p.hasCustomTitle = !!title; p.title = title || p.title; p.tags = tags; p.memo = memo; p.updatedAt = now;
+                } else {
+                    p = { id: 'p_'+now, url, title: title||'取得中...', hasCustomTitle: !!title, description:'', tags, memo, isFavorite: false, createdAt: now, updatedAt: now, isSyncing: true, lastFetch: null };
+                    this.pages.unshift(p);
                 }
+                await db.put('pages', p); await this.createBackup();
+                history.back(); localStorage.removeItem('draftUrl'); this.renderList(); UI.showToast("保存しました", "success");
+                
+                if(!id || !p.lastFetch) worker.postMessage({ type: 'FETCH_METADATA', payload: { id: p.id, url: p.url, pat: localStorage.getItem('githubPat'), lastFetch: p.lastFetch } });
             },
 
             async toggleFavorite(id, e) {
                 e.stopPropagation();
-                const page = this.pages.find(p => p.id === id);
-                if (page) {
-                    page.isFavorite = !page.isFavorite;
-                    await db.put('pages', page);
-                    this.updateCardDOM(page);
-                }
+                const p = this.pages.find(x => x.id === id);
+                if (p) { p.isFavorite = !p.isFavorite; await db.put('pages', p); this.renderList(); }
             },
-
             async deletePage(id, e) {
                 e.stopPropagation();
-                if(confirm('このページを削除しますか？')) {
-                    await db.delete('pages', id);
-                    this.pages = this.pages.filter(p => p.id !== id);
-                    await this.createBackup();
-                    
-                    const cardEl = document.getElementById(`card-${id}`);
-                    if(cardEl) cardEl.remove();
-                    
-                    if(this.pages.length === 0) {
-                        this.renderList();
-                    }
-                    UI.showToast("削除しました");
+                if(confirm('削除しますか？')) {
+                    await db.delete('pages', id); this.pages = this.pages.filter(x => x.id !== id);
+                    this.renderList(); UI.showToast("削除しました");
                 }
             },
 
-            // Readme表示リクエスト処理
             showReadme(id) {
-                const page = this.pages.find(p => p.id === id);
-                if (!page) return;
-                
-                UI.openReadmeModal(page.title);
-
-                const CACHE_TTL = 60 * 60 * 1000; // 1時間キャッシュ
-                const now = Date.now();
-                
-                if (page.readmeContent && page.readmeLastFetch && (now - new Date(page.readmeLastFetch).getTime() < CACHE_TTL)) {
-                    console.log('[Main] Using cached Readme content');
-                    const html = DOMPurify.sanitize(marked.parse(page.readmeContent));
-                    UI.setReadmeContent(html);
+                const p = this.pages.find(x => x.id === id);
+                if (!p) return;
+                UI.openReadmeModal(p.title, id);
+                document.getElementById('aiGenerateBtn').classList.add('hidden');
+                if (p.readmeContent && p.readmeLastFetch && (Date.now() - new Date(p.readmeLastFetch).getTime() < 3600000)) {
+                    document.getElementById('readmeLoading').classList.add('hidden');
+                    document.getElementById('readmeBody').innerHTML = DOMPurify.sanitize(marked.parse(p.readmeContent));
                     return;
                 }
-
-                const cleanUrl = page.url.replace(/\/$/, '');
-                const domainMatch = cleanUrl.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
-                const owner = domainMatch ? domainMatch[1] : null;
-                let repo = (domainMatch && domainMatch[2]) ? domainMatch[2] : `${owner}.github.io`;
-
-                console.log('[Main] Requesting Readme for:', owner, '/', repo);
-
-                if (!owner) {
-                    UI.setReadmeError("リポジトリ情報を特定できません");
-                    return;
-                }
-
-                const pat = this.getGithubPat();
-                worker.postMessage({
-                    type: 'FETCH_README',
-                    payload: {
-                        id: page.id,
-                        owner: owner,
-                        repo: repo,
-                        pat: pat
-                    }
-                });
+                const match = p.url.replace(/\/$/, '').match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
+                if(!match) return;
+                worker.postMessage({ type: 'FETCH_README', payload: { id: p.id, owner: match[1], repo: match[2]||`${match[1]}.github.io`, pat: localStorage.getItem('githubPat') } });
             },
 
-            createCardElement(page) {
-                const cleanUrl = page.url.replace(/\/$/, '');
-                const domainMatch = cleanUrl.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
-                const username = domainMatch ? domainMatch[1] : 'Unknown';
-                let repoName = (domainMatch && domainMatch[2]) ? domainMatch[2] : `${username}.github.io`;
-                
-                // fallback to parsed URL if githubRepoUrl is not explicitly stored
-                const repoUrl = page.githubRepoUrl || `https://github.com/${username}/${repoName}`;
-                
-                const card = document.createElement('div');
-                card.id = `card-${page.id}`;
-                card.className = 'card p-4 relative cursor-pointer flex flex-col h-full';
-                card.onclick = () => window.open(page.url, '_blank', 'noopener,noreferrer');
-                
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex items-center gap-2 overflow-hidden">
-                            <img src="https://github.com/${username}.png" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZD0iTTEyIDBDNS4zNyAwIDAgNS4zNyAwIDEyYzAgNS4zMSAzLjQzNSA5LjgyNiA4LjIwNiAxMS4zODcuNi4xMTEuODE4LS4yNi44MTgtLjU3OHYtMi4wNDRjLTMuMzM4LjcyNC00LjA0Mi0xLjYxLTQuMDQyLTEuNjFDNC40MjIgMTguMDcgMy42MzMgMTcuNyAzLjYzMyAxNy43Yy0xLjA4Ny0uNzQ0LjA4NC0uNzI5LjA4NC0uNzI5IDEuMjA1LjA4NCAxLjgzOCAxLjIzNiAxLjgzOCAxLjIzNiAxLjA3IDEuODM1IDIuODA5IDEuMzA1IDMuNDk1Ljk5OC4xMDgtLjc3Ni40MTctMS4zMDUuNzYtMS42MDUtMi42NjUtLjMwMy01LjQ2Ni0xLjMzMi01LjQ2Ni01LjkzIDAtMS4zMS40NjUtMi4zOCAxLjIzNS0zLjIyMi0uMTIzLS4zMDMtLjUzNS0xLjUyMy4xMTctMy4xNzYgMCAwIDEuMDA4LS4zMjIgMy4zMDEgMS4yMy45NTctLjI2NiAxLjk4My0uMzk4IDMuMDAzLS40MDQgMS4wMi4wMDYgMi4wNDYuMTM4IDMuMDAzLjQwNCAyLjI5MS0xLjU1MiAzLjI5Ny0xLjIzIDMyLjk3LTEuMjMuNjUzIDEuNjUzLjI0MiAyLjg3NC4xMTggMy4xNzYuNzcuODQgMS4yMzUgMS45MTEgMS4yMzUgMy4yMjIgMCA0LjYxLTIuODA1IDUuNjI1LTUuNDc1IDUuOTIuNDIuMzYuODEgMS4wOTYuODEgMi4yMmwwIDMuMjJjMCAuMzIuMjE2LjY5NC44MjUuNTc2QzIwLjU2NSAyMS44MjYgMjQgMTcuMzEgMjQgMTJjMC02LjYzLLTUuMzctMTItMTItMTJ6IiBmaWxsPSIjY2JjYmNiIi8+PC9zdmc+'" class="w-8 h-8 rounded-full border border-gray-200">
-                            <h3 class="font-bold text-gray-800 truncate">${page.title}</h3>
-                        </div>
-                        <button onclick="App.toggleFavorite('${page.id}', event)" class="text-xl ${page.isFavorite ? 'text-yellow-400' : 'text-gray-200 hover:text-gray-300'} transition p-1">
-                            <i class="fa-solid fa-star"></i>
-                        </button>
-                    </div>
-                    <p class="text-xs text-blue-600 mb-2 truncate">${page.url}</p>
-                    ${page.description ? `<p class="text-sm text-gray-600 line-clamp-2 mb-3 flex-grow">${page.description}</p>` : '<div class="flex-grow"></div>'}
-                    ${page.memo ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3"><i class="fa-solid fa-note-sticky"></i> ${page.memo}</div>` : ''}
+            // --- AI Auto Generate Readme ---
+            async generateReadmeAI() {
+                const apiKey = localStorage.getItem('aiApiKey');
+                const p = this.pages.find(x => x.id === this.currentReadmeTarget);
+                if(!apiKey || !p) return UI.showToast("API Keyが未設定か対象が見つかりません", "error");
+
+                document.getElementById('readmeError').classList.add('hidden');
+                document.getElementById('readmeLoading').classList.remove('hidden');
+                document.getElementById('readmeLoadingText').innerText = "AIが思考中...";
+
+                try {
+                    const prompt = localStorage.getItem('aiPrompt');
+                    const reqBody = {
+                        contents: [{ parts: [{ text: `${prompt}\n\n[Project Info]\nTitle: ${p.title}\nURL: ${p.url}\nDescription: ${p.description}\nTags: ${(p.tags||[]).join(', ')}` }]}]
+                    };
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(reqBody)
+                    });
+                    if(!res.ok) throw new Error("API Error");
+                    const data = await res.json();
+                    const aiText = data.candidates[0].content.parts[0].text;
                     
-                    <div class="flex gap-2 mb-3 mt-1">
-                        <a href="${repoUrl}" target="_blank" rel="noopener,noreferrer" onclick="event.stopPropagation()" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-[11px] text-gray-600 font-medium transition shadow-sm">
-                            <i class="fa-brands fa-github text-sm"></i> リポジトリ
-                        </a>
-                        <button onclick="event.stopPropagation(); App.showReadme('${page.id}')" class="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-lg text-[11px] text-blue-700 font-medium transition shadow-sm">
-                            <i class="fa-solid fa-book-open text-sm"></i> Readme
-                        </button>
-                    </div>
-
-                    <div class="flex justify-between items-center mt-auto border-t border-gray-100 pt-3">
-                        <span class="text-[10px] ${page.isSyncing ? 'text-blue-500 font-bold' : 'text-gray-400'}">
-                            ${page.isSyncing ? '<i class="fa-solid fa-arrows-rotate fa-spin"></i> 同期中...' : (page.githubUpdatedAt ? '更新: '+new Date(page.githubUpdatedAt).toLocaleDateString() : '')}
-                        </span>
-                        <div class="flex gap-2">
-                            <button onclick="event.stopPropagation(); UI.openAddModal('${page.id}')" class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition">
-                                <i class="fa-solid fa-pen text-xs"></i>
-                            </button>
-                            <button onclick="App.deletePage('${page.id}', event)" class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition">
-                                <i class="fa-solid fa-trash text-xs"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                return card;
-            },
-
-            updateCardDOM(page) {
-                const oldCard = document.getElementById(`card-${page.id}`);
-                if (oldCard) {
-                    const newCard = this.createCardElement(page);
-                    oldCard.replaceWith(newCard);
+                    p.readmeContent = aiText; p.readmeLastFetch = new Date().toISOString();
+                    await db.put('pages', p);
+                    
+                    document.getElementById('readmeLoading').classList.add('hidden');
+                    document.getElementById('readmeBody').innerHTML = DOMPurify.sanitize(marked.parse(aiText));
+                    UI.showToast("AIがReadmeを生成しました", "success");
+                } catch(e) {
+                    document.getElementById('readmeLoading').classList.add('hidden');
+                    document.getElementById('readmeError').classList.remove('hidden');
+                    UI.showToast("AI生成に失敗しました", "error");
                 }
             },
 
-            renderPages() {
-                this.filterMode = 'all';
-                this.renderList();
-            },
-
-            renderFavorites() {
-                this.filterMode = 'favorites';
-                this.renderList();
-            },
+            renderPages() { this.filterMode = 'all'; this.renderList(); },
+            renderFavorites() { this.filterMode = 'favorites'; this.renderList(); },
 
             renderList() {
-                const container = document.getElementById('pagesList');
-                const emptyState = document.getElementById('emptyState');
-                container.innerHTML = '';
-
-                let filtered = this.pages;
-                if (this.filterMode === 'favorites') {
-                    filtered = filtered.filter(p => p.isFavorite);
-                }
+                const c = document.getElementById('pagesList'); c.innerHTML = '';
+                const tagC = document.getElementById('tagFilterContainer'); tagC.innerHTML = '';
+                let allTags = new Set();
                 
-                if (this.searchQuery) {
-                    filtered = filtered.filter(p => 
-                        p.url.toLowerCase().includes(this.searchQuery) ||
-                        (p.title && p.title.toLowerCase().includes(this.searchQuery)) ||
-                        (p.memo && p.memo.toLowerCase().includes(this.searchQuery))
-                    );
-                }
+                let f = this.pages;
+                if (this.filterMode === 'favorites') f = f.filter(p => p.isFavorite);
+                
+                this.searchQuery = document.getElementById('searchInput').value.toLowerCase();
+                if (this.searchQuery) f = f.filter(p => p.url.toLowerCase().includes(this.searchQuery) || (p.title&&p.title.toLowerCase().includes(this.searchQuery)) || (p.memo&&p.memo.toLowerCase().includes(this.searchQuery)) || (p.tags&&p.tags.some(t=>t.toLowerCase().includes(this.searchQuery))));
 
-                if (filtered.length === 0) {
-                    emptyState.classList.remove('hidden');
-                } else {
-                    emptyState.classList.add('hidden');
-                    filtered.forEach(page => {
-                        container.appendChild(this.createCardElement(page));
+                this.pages.forEach(p => { if(p.tags) p.tags.forEach(t => allTags.add(t)); });
+                
+                // Render Tags UI
+                if(allTags.size > 0) {
+                    const allBtn = document.createElement('button');
+                    allBtn.className = `px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition touch-target min-h-[36px] ${!this.activeTag ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`;
+                    allBtn.innerText = "すべて";
+                    allBtn.onclick = () => { this.activeTag = null; this.renderList(); };
+                    tagC.appendChild(allBtn);
+                    
+                    Array.from(allTags).forEach(t => {
+                        const b = document.createElement('button');
+                        b.className = `px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition touch-target min-h-[36px] ${this.activeTag === t ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`;
+                        b.innerText = t;
+                        b.onclick = () => { this.activeTag = t; this.renderList(); };
+                        tagC.appendChild(b);
                     });
                 }
+
+                if(this.activeTag) f = f.filter(p => p.tags && p.tags.includes(this.activeTag));
+
+                if (f.length === 0) document.getElementById('emptyState').classList.remove('hidden');
+                else {
+                    document.getElementById('emptyState').classList.add('hidden');
+                    f.forEach(p => {
+                        const repoUrl = p.githubRepoUrl || p.url;
+                        const el = document.createElement('div');
+                        el.className = 'card p-4 relative cursor-pointer flex flex-col h-full ripple-target';
+                        el.onclick = () => window.open(p.url, '_blank', 'noopener');
+                        el.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold text-gray-800 truncate text-lg pr-2">${p.title}</h3>
+                                <button onclick="App.toggleFavorite('${p.id}', event)" class="touch-target text-xl ${p.isFavorite ? 'text-yellow-400' : 'text-gray-200 hover:text-gray-300'} transition -mr-2 -mt-2">
+                                    <i class="fa-solid fa-star"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-blue-600 mb-2 truncate">${p.url}</p>
+                            ${p.tags && p.tags.length ? `<div class="flex gap-1 mb-2 flex-wrap">${p.tags.map(t=>`<span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${t}</span>`).join('')}</div>` : ''}
+                            ${p.description ? `<p class="text-sm text-gray-600 line-clamp-2 mb-3 flex-grow">${p.description}</p>` : '<div class="flex-grow"></div>'}
+                            ${p.memo ? `<div class="bg-yellow-50 text-yellow-800 text-xs p-2 rounded border border-yellow-100 mb-3 line-clamp-1"><i class="fa-solid fa-note-sticky"></i> ${p.memo}</div>` : ''}
+                            
+                            <div class="flex gap-2 mb-3 mt-1">
+                                <a href="${repoUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-xs text-gray-700 font-bold transition shadow-sm ripple-target">
+                                    <i class="fa-brands fa-github text-sm"></i> リポジトリ
+                                </a>
+                                <button onclick="event.stopPropagation(); App.showReadme('${p.id}')" class="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-xl text-xs text-blue-700 font-bold transition shadow-sm ripple-target">
+                                    <i class="fa-solid fa-book-open text-sm"></i> Readme
+                                </button>
+                            </div>
+                            <div class="flex justify-between items-center mt-auto border-t border-gray-100 pt-3">
+                                <span class="text-[10px] ${p.isSyncing ? 'text-blue-500 font-bold' : 'text-gray-400'}">
+                                    ${p.isSyncing ? '<i class="fa-solid fa-arrows-rotate fa-spin"></i> 同期中...' : (p.githubUpdatedAt ? '更新: '+new Date(p.githubUpdatedAt).toLocaleDateString() : '')}
+                                </span>
+                                <div class="flex gap-1 -mr-2">
+                                    <button onclick="event.stopPropagation(); UI.openAddModal('${p.id}')" class="touch-target rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition ripple-target w-10 h-10">
+                                        <i class="fa-solid fa-pen text-xs"></i>
+                                    </button>
+                                    <button onclick="App.deletePage('${p.id}', event)" class="touch-target rounded-full bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition ripple-target w-10 h-10">
+                                        <i class="fa-solid fa-trash text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        c.appendChild(el);
+                    });
+                    attachRipple();
+                }
             },
 
-            // --- 5 Generations Auto Backup ---
+            // --- Async & Backup ---
             async createBackup() {
-                const data = JSON.stringify(this.pages);
-                const timestamp = Date.now();
-                await db.put('backups', { timestamp, data });
-                
+                await db.put('backups', { timestamp: Date.now(), data: JSON.stringify(this.pages) });
                 const backups = await db.getAll('backups');
                 if (backups.length > 5) {
-                    backups.sort((a, b) => a.timestamp - b.timestamp);
-                    const toDelete = backups.length - 5;
-                    for(let i=0; i<toDelete; i++) {
-                        await db.delete('backups', backups[i].timestamp);
-                    }
+                    backups.sort((a,b)=>a.timestamp-b.timestamp);
+                    for(let i=0; i<backups.length-5; i++) await db.delete('backups', backups[i].timestamp);
                 }
             },
-
             async renderBackups() {
-                const list = document.getElementById('backupList');
-                list.innerHTML = '';
-                const backups = await db.getAll('backups');
-                backups.sort((a, b) => b.timestamp - a.timestamp);
-
-                if(backups.length === 0) {
-                    list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">バックアップはありません</p>';
-                    return;
-                }
-
-                backups.forEach((b, index) => {
-                    const date = new Date(b.timestamp).toLocaleString();
-                    const item = document.createElement('div');
-                    item.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-100';
-                    item.innerHTML = `
-                        <div>
-                            <p class="text-sm font-medium text-gray-800">${index === 0 ? '最新の保存' : '過去の保存'}</p>
-                            <p class="text-xs text-gray-500">${date}</p>
-                        </div>
-                        <button onclick="App.restoreBackup(${b.timestamp})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold hover:bg-blue-200">復元</button>
-                    `;
-                    list.appendChild(item);
+                const list = document.getElementById('backupList'); list.innerHTML = '';
+                const b = await db.getAll('backups'); b.sort((x,y)=>y.timestamp-x.timestamp);
+                if(!b.length) return list.innerHTML = '<p class="text-sm text-gray-500 text-center">バックアップなし</p>';
+                b.forEach((x, i) => {
+                    const el = document.createElement('div'); el.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-200';
+                    el.innerHTML = `<div><p class="text-sm font-bold text-gray-800">${i===0?'最新':'過去'}</p><p class="text-xs text-gray-500">${new Date(x.timestamp).toLocaleString()}</p></div>
+                        <button onclick="App.restoreBackup(${x.timestamp})" class="touch-target px-4 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold ripple-target min-h-[40px]">復元</button>`;
+                    list.appendChild(el);
                 });
+                attachRipple();
             },
-
-            async restoreBackup(timestamp) {
+            async restoreBackup(ts) {
                 if(confirm('現在のデータは上書きされます。復元しますか？')) {
-                    const backup = await db.get('backups', timestamp);
-                    if(backup) {
-                        const parsed = JSON.parse(backup.data);
-                        await db.clear('pages');
-                        for(const p of parsed) {
-                            await db.put('pages', p);
-                        }
-                        this.pages = parsed;
-                        this.renderList();
-                        UI.closeModal('historyModal');
-                        UI.showToast('復元しました', 'success');
+                    const b = await db.get('backups', ts);
+                    if(b) {
+                        await db.clear('pages'); const p = JSON.parse(b.data);
+                        for(const x of p) await db.put('pages', x);
+                        this.pages = p; history.back(); this.renderList(); UI.showToast('復元しました', 'success');
                     }
                 }
             },
 
-            // --- Export / Import ---
             exportData() {
-                const dataStr = JSON.stringify(this.pages, null, 2);
-                const blob = new Blob([dataStr], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `MyPagesHub_Backup_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                UI.showToast("エクスポートしました", "success");
+                a.href = URL.createObjectURL(new Blob([JSON.stringify(this.pages, null, 2)], { type: "application/json" }));
+                a.download = `MyPagesHub_${new Date().toISOString().split('T')[0]}.json`;
+                a.click(); UI.showToast("エクスポートしました", "success");
             },
-
             importData(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = async (e) => {
+                const r = new FileReader();
+                r.onload = async (ev) => {
                     try {
-                        const imported = JSON.parse(e.target.result);
-                        if (!Array.isArray(imported)) throw new Error("無効なフォーマット");
-                        
-                        await db.clear('pages');
-                        for(const p of imported) {
-                            if(p.id && p.url) await db.put('pages', p);
-                        }
-                        await this.loadPages();
-                        await this.createBackup();
-                        UI.closeModal('settingsModal');
-                        UI.showToast("インポートしました", "success");
-                    } catch (err) {
-                        UI.showToast("読み込みに失敗しました", "error");
-                    }
+                        const imported = JSON.parse(ev.target.result);
+                        await db.clear('pages'); for(const p of imported) await db.put('pages', p);
+                        this.pages = imported; await this.createBackup();
+                        history.back(); this.renderList(); UI.showToast("インポートしました", "success");
+                    } catch (err) { UI.showToast("失敗しました", "error"); }
                 };
-                reader.readAsText(file);
+                if(e.target.files[0]) r.readAsText(e.target.files[0]);
                 e.target.value = '';
             },
-
             async clearAllData() {
-                if(confirm("すべてのデータと履歴を削除します。よろしいですか？")) {
-                    await db.clear('pages');
-                    await db.clear('backups');
-                    this.pages = [];
-                    this.renderList();
-                    UI.closeModal('settingsModal');
-                    UI.showToast("初期化しました");
+                if(confirm("すべて削除します。よろしいですか？")) {
+                    await db.clear('pages'); await db.clear('backups'); this.pages = [];
+                    history.back(); this.renderList(); UI.showToast("初期化しました");
                 }
             },
 
-            // --- Async Bulk Sync ---
-            cancelSync() {
-                if (localStorage.getItem('syncInProgress') === 'true') {
-                    this.syncCancelRequested = true;
-                    UI.showToast("同期を停止しています...", "info");
-                }
-            },
-
-            async syncAll() {
+            cancelSync() { this.syncCancelRequested = true; UI.showToast("同期を停止中...", "info"); },
+            async syncAll(isAuto = false) {
                 if(localStorage.getItem('syncInProgress') === 'true') return;
+                this.syncCancelRequested = false; localStorage.setItem('syncInProgress', 'true');
+                const pat = localStorage.getItem('githubPat');
+                document.getElementById('sync-status').classList.remove('hidden');
                 
-                await requestWakeLock();
-                this.syncCancelRequested = false;
-                localStorage.setItem('syncInProgress', 'true');
-
-                const pat = this.getGithubPat();
-                const syncStatusEl = document.getElementById('sync-status');
-                const syncTextEl = document.getElementById('sync-progress-text');
-                
-                console.log('[Main] syncAll started. PAT available:', !!pat);
-
-                if (pat) {
-                    UI.showToast("リポジトリからPagesを自動検出しています...");
-                    syncStatusEl.classList.remove('hidden');
-                    syncTextEl.innerText = `リポジトリ検索中...`;
-                    
+                if (pat && !isAuto) { // Only do heavy repo search on manual sync
+                    document.getElementById('sync-progress-text').innerText = `検索中...`;
                     worker.postMessage({ type: 'SYNC_USER_REPOS', payload: { pat } });
                 } else {
                     if(this.pages.length === 0) {
-                        localStorage.removeItem('syncInProgress');
-                        releaseWakeLock();
-                        UI.showToast("PATを設定するか、手動でページを追加してください", "info");
-                        return;
+                        localStorage.removeItem('syncInProgress'); document.getElementById('sync-status').classList.add('hidden');
+                        if(!isAuto) UI.showToast("PATを設定するかページを追加してください", "info"); return;
                     }
-                    UI.showToast("個別更新を開始しました");
                     this.syncIndividualPages();
                 }
             },
-
             syncIndividualPages() {
-                if(this.pages.length === 0 || this.syncCancelRequested) {
-                    this.checkSyncCompletion();
-                    return;
-                }
-
-                this.syncProgress = { total: this.pages.length, current: 0, success: 0, skipped: 0, error: 0 };
-                const syncStatusEl = document.getElementById('sync-status');
-                const syncTextEl = document.getElementById('sync-progress-text');
-                const pat = this.getGithubPat();
-                
-                syncStatusEl.classList.remove('hidden');
-                syncTextEl.innerText = `個別更新中... (0/${this.syncProgress.total})`;
-
-                console.log(`[Main] Starting individual sync for ${this.pages.length} pages. PAT:`, !!pat);
-
+                if(this.pages.length === 0 || this.syncCancelRequested) return this.checkSyncCompletion();
+                document.getElementById('sync-progress-text').innerText = `更新中...`;
+                const pat = localStorage.getItem('githubPat');
                 this.pages.forEach(p => {
                     p.isSyncing = true;
-                    this.updateCardDOM(p);
-                    worker.postMessage({ 
-                        type: 'FETCH_METADATA', 
-                        payload: { 
-                            id: p.id, 
-                            url: p.url, 
-                            pat: pat,
-                            lastFetch: p.lastFetch || null
-                        } 
-                    });
+                    worker.postMessage({ type: 'FETCH_METADATA', payload: { id: p.id, url: p.url, pat, lastFetch: p.lastFetch } });
                 });
+                this.renderList();
             }
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            App.init();
-        });
-
+        document.getElementById('searchInput').addEventListener('input', () => App.renderList());
+        window.addEventListener('DOMContentLoaded', () => App.init());
     </script>
 </body>
 </html>
