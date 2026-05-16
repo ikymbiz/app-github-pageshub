@@ -313,7 +313,7 @@
 
         // --- 2. DB ---
         class DB {
-            constructor() { this.dbName = 'MyPagesDB'; this.version = 3; this.db = null; }
+            constructor() { this.dbName = 'MyPagesDB'; this.version = 4; this.db = null; }
             async init() {
                 return new Promise((resolve, reject) => {
                     const req = indexedDB.open(this.dbName, this.version);
@@ -321,6 +321,7 @@
                         const db = e.target.result;
                         if (!db.objectStoreNames.contains('pages')) db.createObjectStore('pages', { keyPath: 'id' });
                         if (!db.objectStoreNames.contains('backups')) db.createObjectStore('backups', { keyPath: 'timestamp' });
+                        if (!db.objectStoreNames.contains('secrets')) db.createObjectStore('secrets', { keyPath: 'id' });
                     };
                     req.onsuccess = e => { this.db = e.target.result; resolve(); };
                     req.onerror = e => reject(e.target.error);
@@ -332,6 +333,41 @@
             async delete(s, k) { return new Promise(r => { const req = this.db.transaction(s, 'readwrite').objectStore(s).delete(k); req.onsuccess = ()=>r(); }); }
         }
         const db = new DB();
+
+        // --- Secure Token Storage (AES-GCM via Web Crypto, stored in IndexedDB 'secrets' folder) ---
+        // GitHub PAT (トークン) は AES-GCM 256bit で暗号化し、IndexedDB の 'secrets' オブジェクトストアに保存する。
+        // 暗号鍵は non-extractable な CryptoKey として同ストアに保管され、JS からも取り出せない。
+        const SecureStore = {
+            _keyPromise: null,
+            async _getKey() {
+                if (this._keyPromise) return this._keyPromise;
+                this._keyPromise = (async () => {
+                    const rec = await db.get('secrets', '__crypto_key__');
+                    if (rec && rec.key) return rec.key;
+                    const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+                    await db.put('secrets', { id: '__crypto_key__', key });
+                    return key;
+                })();
+                return this._keyPromise;
+            },
+            async setToken(id, plaintext) {
+                if (!plaintext) { await db.delete('secrets', id); return; }
+                const key = await this._getKey();
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const enc = new TextEncoder().encode(plaintext);
+                const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+                await db.put('secrets', { id, iv: Array.from(iv), ct: Array.from(new Uint8Array(ct)) });
+            },
+            async getToken(id) {
+                const rec = await db.get('secrets', id);
+                if (!rec || !rec.iv || !rec.ct) return '';
+                try {
+                    const key = await this._getKey();
+                    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(rec.iv) }, key, new Uint8Array(rec.ct));
+                    return new TextDecoder().decode(plain);
+                } catch (e) { console.error('SecureStore decrypt error', e); return ''; }
+            }
+        };
 
         // --- Web Worker ---
         const workerCode = `
@@ -433,16 +469,32 @@
         window.addEventListener('popstate', () => { if (UI.activeModals.length > 0) UI.closeModal(UI.activeModals.pop()); });
 
         const App = {
-            pages: [], filterMode: 'all', activeTag: null, searchQuery: '', isGroupView: false, targetDeleteId: null, currentReadmeId: null, isSyncing: false,
+            pages: [], filterMode: 'all', activeTag: null, searchQuery: '', isGroupView: false, targetDeleteId: null, currentReadmeId: null, isSyncing: false, cachedPat: '',
 
             async init() {
                 await db.init();
-                ['githubPat', 'aiApiKey', 'aiPrompt'].forEach(k => { if(localStorage.getItem(k)) document.getElementById(k).value = localStorage.getItem(k); });
+                // githubPat: 暗号化されたストレージから復号して取得 (旧 localStorage からの移行も対応)
+                const legacyPat = localStorage.getItem('githubPat');
+                if (legacyPat) {
+                    await SecureStore.setToken('githubPat', legacyPat);
+                    localStorage.removeItem('githubPat');
+                    this.cachedPat = legacyPat;
+                } else {
+                    this.cachedPat = await SecureStore.getToken('githubPat');
+                }
+                if (this.cachedPat) document.getElementById('githubPat').value = this.cachedPat;
+                // それ以外 (aiApiKey, aiPrompt) は従来通り localStorage から読み込み
+                ['aiApiKey', 'aiPrompt'].forEach(k => { if(localStorage.getItem(k)) document.getElementById(k).value = localStorage.getItem(k); });
                 this.pages = await db.getAll('pages'); this.pages.sort((a,b)=>b.updatedAt-a.updatedAt);
                 this.setupWorker(); this.renderPages();
             },
-            saveSettings() {
-                ['githubPat', 'aiApiKey', 'aiPrompt'].forEach(k => {
+            async saveSettings() {
+                // githubPat は暗号化して IndexedDB の 'secrets' ストアに保存
+                const patVal = document.getElementById('githubPat').value.trim();
+                await SecureStore.setToken('githubPat', patVal);
+                this.cachedPat = patVal;
+                // それ以外 (aiApiKey, aiPrompt) は従来通り localStorage に保存
+                ['aiApiKey', 'aiPrompt'].forEach(k => {
                     const v = document.getElementById(k).value.trim(); if(v) localStorage.setItem(k, v); else localStorage.removeItem(k);
                 }); UI.showToast("設定を保存しました", "success");
             },
@@ -534,7 +586,7 @@
                 // Requirement 3: フォームに反映されたタグやグループをIndexedDBに保存する処理
                 if(!id) this.pages.unshift(p); await db.put('pages', p);
                 history.back(); this.renderList(); UI.showToast("保存しました", "success");
-                worker.postMessage({ type: 'FETCH_METADATA', payload: { id: p.id, url: p.url, pat: localStorage.getItem('githubPat') } });
+                worker.postMessage({ type: 'FETCH_METADATA', payload: { id: p.id, url: p.url, pat: App.cachedPat } });
                 
                 // Requirement 5: 保存時に description が空であれば自動要約
                 if (!p.description) this.autoGenerateDescription(p.id);
@@ -543,7 +595,7 @@
             async handleCreateRepo(e) {
                 e.preventDefault();
                 const name = document.getElementById('newRepoName').value.trim(); const desc = document.getElementById('newRepoDesc').value.trim();
-                const pat = localStorage.getItem('githubPat');
+                const pat = App.cachedPat;
                 if(!pat) return UI.showToast("設定からGitHub PATを登録してください", "error");
                 document.getElementById('createRepoBtn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 作成中...';
                 worker.postMessage({ type: 'CREATE_REPO', payload: { pat, name, description: desc } });
@@ -555,7 +607,7 @@
                 if(p) {
                     if (document.getElementById('deleteRepoCheck').checked) {
                         const match = p.url.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
-                        if(match) worker.postMessage({ type: 'DELETE_REPO', payload: { id: p.id, owner: match[1], repo: match[2] || `${match[1]}.github.io`, pat: localStorage.getItem('githubPat') } });
+                        if(match) worker.postMessage({ type: 'DELETE_REPO', payload: { id: p.id, owner: match[1], repo: match[2] || `${match[1]}.github.io`, pat: App.cachedPat } });
                     }
                     await db.delete('pages', p.id); this.pages = this.pages.filter(x => x.id !== p.id);
                     this.renderList(); UI.showToast("削除しました"); history.back();
@@ -563,7 +615,7 @@
             },
 
             async syncAll() {
-                const pat = localStorage.getItem('githubPat');
+                const pat = App.cachedPat;
                 if(!pat) return UI.showToast("設定からGitHub PATを登録してください", "error");
                 document.getElementById('sync-status').classList.remove('hidden');
                 this.isSyncing = true;
@@ -630,7 +682,7 @@
                 
                 if(!p.readmeContent) {
                     const match = p.url.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
-                    if(match) worker.postMessage({ type: 'FETCH_README', payload: { id: p.id, owner: match[1], repo: match[2]||`${match[1]}.github.io`, pat: localStorage.getItem('githubPat') } });
+                    if(match) worker.postMessage({ type: 'FETCH_README', payload: { id: p.id, owner: match[1], repo: match[2]||`${match[1]}.github.io`, pat: App.cachedPat } });
                     return;
                 }
 
@@ -657,7 +709,7 @@
                     document.getElementById('actionsList').classList.add('hidden');
                     document.getElementById('actionsEmpty').classList.add('hidden');
                     UI.openModal('actionsModal');
-                    worker.postMessage({ type: 'FETCH_ACTIONS', payload: { owner: match[1], repo: match[2], pat: localStorage.getItem('githubPat') } });
+                    worker.postMessage({ type: 'FETCH_ACTIONS', payload: { owner: match[1], repo: match[2], pat: App.cachedPat } });
                 } else UI.showToast("リポジトリが特定できません", "error");
             },
 
@@ -674,7 +726,7 @@
                 } else {
                     document.getElementById('readmeLoading').classList.remove('hidden'); document.getElementById('readmeBody').innerHTML = '';
                     const match = p.url.match(/https?:\/\/([\w\-]+)\.github\.io\/?([\w\-\.]+)?/i);
-                    if(match) worker.postMessage({ type: 'FETCH_README', payload: { id: p.id, owner: match[1], repo: match[2]||`${match[1]}.github.io`, pat: localStorage.getItem('githubPat') } });
+                    if(match) worker.postMessage({ type: 'FETCH_README', payload: { id: p.id, owner: match[1], repo: match[2]||`${match[1]}.github.io`, pat: App.cachedPat } });
                 }
                 UI.openModal('readmeModal');
             },
